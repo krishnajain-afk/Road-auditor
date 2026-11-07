@@ -17,8 +17,19 @@ _SEV = {"critical": colors.HexColor("#b3261e"), "high": colors.HexColor("#d9480f
         "low": colors.HexColor("#2f7d32"), "info": colors.HexColor("#607d8b")}
 
 
+def _esc(txt) -> str:
+    return str(txt).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _p(txt, st):
-    return Paragraph(str(txt).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), st)
+    """Plain text paragraph (escaped)."""
+    return Paragraph(_esc(txt), st)
+
+
+def _pm(parts, st):
+    """Paragraph from (text, bold) parts joined with line breaks; text is escaped, markup is ours."""
+    html = "<br/>".join(f"<b>{_esc(t)}</b>" if b else _esc(t) for t, b in parts)
+    return Paragraph(html, st)
 
 
 def write_pdf(report: AuditReport, path: str) -> str:
@@ -42,14 +53,14 @@ def write_pdf(report: AuditReport, path: str) -> str:
         el.append(_p("- " + x, body))
     el += [_p("2. Methodology and limitations", h2)]
     for k, v in report.methodology.items():
-        el.append(_p(f"<b>{k}</b>: {v if not isinstance(v, list) else '; '.join(map(str, v))}", body))
+        el.append(Paragraph(f"<b>{_esc(k)}</b>: {_esc(v if not isinstance(v, list) else '; '.join(map(str, v)))}", body))
     for l in report.limitations:
         el.append(_p("- " + l, small))
     el += [PageBreak(), _p(f"3. Findings register ({len(report.findings)})", h2)]
     rows = [[_p(x, small) for x in ("ID", "Ch. (m)", "Finding / observed", "Standard", "Sev.", "Risk", "Priority")]]
     for f in report.findings:
         rows.append([_p(f.finding_id, small), _p(f"{f.chainage_m:.0f}" + (f"-{f.chainage_end_m:.0f}" if f.chainage_end_m else ""), small),
-                     _p(f"<b>{f.title}</b><br/>{f.observed}", small), _p(f.standard_ref, small), _p(f.severity.value, small), _p(f.risk_score, small),
+                     _pm([(f.title, True), (f.observed, False)], small), _p(f.standard_ref, small), _p(f.severity.value, small), _p(f.risk_score, small),
                      _p(PRIORITY_LABEL[f.priority].split(" - ")[0], small)])
     t = Table(rows, colWidths=[27 * mm, 14 * mm, 62 * mm, 40 * mm, 13 * mm, 9 * mm, 20 * mm], repeatRows=1)
     st = [("GRID", (0, 0), (-1, -1), 0.3, colors.grey), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9edf2")), ("VALIGN", (0, 0), (-1, -1), "TOP")]
@@ -58,7 +69,7 @@ def write_pdf(report: AuditReport, path: str) -> str:
     t.setStyle(TableStyle(st)); el.append(t)
     el += [PageBreak(), _p("4. Finding sheets", h2)]
     for f in report.findings:
-        el.append(_p(f"<b>{f.finding_id} - {f.title}</b> [{f.severity.value.upper()}, risk {f.risk_score}] Ch. {f.chainage_m:.0f} m" + (f" ({f.geo.lat:.6f}, {f.geo.lon:.6f})" if f.geo else ""), body))
+        el.append(Paragraph(f"<b>{_esc(f.finding_id)} - {_esc(f.title)}</b> [{f.severity.value.upper()}, risk {f.risk_score}] Ch. {f.chainage_m:.0f} m" + (f" ({f.geo.lat:.6f}, {f.geo.lon:.6f})" if f.geo else ""), body))
         rows = [[_p("Standard", small), _p(f.standard_ref, small)], [_p("Requirement", small), _p(f.requirement, small)], [_p("Observed", small), _p(f.observed, small)],
                 [_p("Recommendation", small), _p(f.recommendation, small)], [_p("Agency / priority", small), _p(f"{f.responsible_agency} / {PRIORITY_LABEL[f.priority]}", small)],
                 [_p("Confidence / tags", small), _p(f"{f.confidence:.0%} / {', '.join(f.tags)}", small)]]
