@@ -34,6 +34,42 @@ STATUTORY_SPEED = {  # MoRTH S.O.1522(E) 2018, M1 vehicles
 }
 
 
+CHECKLIST_FILE = RULES_FILE.parent / "irc_sp88_checklist.yaml"
+
+
+def load_checklist(path=None) -> Dict[str, Any]:
+    with open(path or CHECKLIST_FILE, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def evaluate_checklist(compliance: Sequence[ComplianceItem], path=None):
+    """Roll the per-rule compliance matrix up to the 66 IRC:SP:88 Stage-5 checklist questions."""
+    from ..schemas import ChecklistItem
+    by_rule = {c.rule_id: c for c in compliance}
+    out = []
+    for sec in load_checklist(path)["sections"]:
+        for it in sec["items"]:
+            cs = [by_rule[r] for r in it.get("rules", []) if r in by_rule]
+            nf = sum(c.n_findings for c in cs)
+            statuses = {c.status for c in cs}
+            if not cs:
+                status = "manual"
+            elif "non_compliant" in statuses:
+                status = "deficient"
+            elif "compliant" in statuses and statuses <= {"compliant", "not_applicable"}:
+                status = "satisfactory"
+            elif "compliant" in statuses:
+                status = "partially_assessed"
+            else:
+                status = "not_assessed"
+            if it.get("manual") and status in ("satisfactory", "not_assessed"):
+                status = "partially_assessed" if status == "satisfactory" else "manual"
+            detail = "; ".join(f"{c.rule_id}:{c.status}" + (f"({c.n_findings})" if c.n_findings else "") for c in cs)
+            out.append(ChecklistItem(section=str(sec["id"]), section_title=sec["title"], n=int(it["n"]), question=it["q"],
+                                     rules=list(it.get("rules", [])), manual=bool(it.get("manual", False)), status=status, n_findings=nf, detail=detail))
+    return out
+
+
 def load_rules(path=None) -> Dict[str, Any]:
     with open(path or RULES_FILE, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -82,6 +118,8 @@ class RuleEngine:
     # ------------------------------------------------------------------ helpers
     def _threshold(self, rule: Dict, thr, rm: RoadModel):
         if isinstance(thr, dict):
+            if rm.road_class.value in thr:
+                return thr[rm.road_class.value]
             g = _group(rm.road_class, self.groups)
             if g in thr:
                 return thr[g]
@@ -90,6 +128,9 @@ class RuleEngine:
             return next(iter(thr.values()))
         if thr == "min_radius_for_design_speed":
             return irc_min_radius_table(rm.design_speed_kmph or 50)
+        if thr == "sign_size_for_speed":
+            v = rm.design_speed_kmph or 50
+            return 0.6 if v <= 50 else 0.75 if v <= 65 else 0.9 if v <= 80 else 1.2
         if thr == "posted_or_statutory_plus_10":
             return (rm.posted_speed_kmph or STATUTORY_SPEED[rm.road_class]) + 10
         return thr
@@ -215,7 +256,7 @@ class RuleEngine:
             if val is None:
                 continue
             assessed += 1
-            if _cmp(val, chk["op"], thr):
+            if _cmp(val, chk["op"], thr, float(chk.get("tolerance", 0.0))):
                 obs = f"{chk['attr'].replace('_', ' ')} = {val} (required {chk['op']} {thr}) at Ch. {a.chainage_m:.0f} m"
                 fs.append(self._mk_finding(rule, rm, a.chainage_m, obs, asset=a, conf=min(a.confidence, 0.8)))
         if assessed == 0:

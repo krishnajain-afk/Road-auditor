@@ -25,7 +25,8 @@ table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border:1px soli
  <div class="card"><b>{{ s.n_findings }}</b><span>Findings</span></div>
  <div class="card"><b>{{ s.n_by_severity.get('critical',0) }} / {{ s.n_by_severity.get('high',0) }}</b><span>Critical / High</span></div>
  <div class="card"><b>{{ '%.0f'|format(s.length_m) }} m</b><span>Surveyed length</span></div>
- <div class="card"><b>{{ s.coverage_pct }}%</b><span>Checklist coverage ({{ s.assessed_rules }} assessed, {{ s.not_assessed_rules }} not assessable from media)</span></div>
+ <div class="card"><b>{{ s.coverage_pct }}%</b><span>Rule coverage ({{ s.assessed_rules }} assessed, {{ s.not_assessed_rules }} not assessable from media)</span></div>
+ <div class="card"><b>{{ s.checklist_counts.get('deficient',0) }} / {{ s.checklist_counts.get('satisfactory',0) }}</b><span>IRC:SP:88 checklist items deficient / satisfactory ({{ s.checklist_counts.get('manual',0) }} manual)</span></div>
 </div>
 <p><b>Road class:</b> {{ rm.road_class.value.replace('_',' ') }} &middot; <b>Design speed:</b> {{ rm.design_speed_kmph }} km/h
 {% if rm.posted_speed_kmph %}&middot; <b>Posted:</b> {{ rm.posted_speed_kmph }} km/h{% endif %} &middot; <b>Terrain:</b> {{ rm.terrain.value }}
@@ -67,6 +68,12 @@ table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border:1px soli
 <h2>5. Compliance matrix (IRC / MoRTH checklist)</h2>
 <table><thead><tr><th>Rule</th><th>Category</th><th>Check</th><th>Standard</th><th>Status</th><th>Detail</th></tr></thead><tbody>
 {% for c in r.compliance %}<tr><td>{{ c.rule_id }}</td><td>{{ c.category.replace('_',' ') }}</td><td>{{ c.title }}</td><td class="small">{{ c.standard_ref }}</td><td class="st {{ c.status }}">{{ c.status.replace('_',' ') }}</td><td class="small">{{ c.detail }}</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>5b. IRC:SP:88-2019 Stage-5 checklist (66 items)</h2>
+<p class="small">Each checklist question is rolled up from the automated rules mapped to it. <b>deficient</b> = at least one mapped rule failed; <b>satisfactory</b> = all mapped rules assessed and compliant; <b>partially assessed</b> = some evidence but the item also needs site/desk verification; <b>not assessed</b> = the media did not allow the check; <b>manual</b> = requires the auditor (crash records, skid resistance, signal phasing...).</p>
+<table><thead><tr><th>#</th><th>Section</th><th>Checklist question</th><th>Status</th><th>Findings</th><th>Rules</th></tr></thead><tbody>
+{% for c in r.checklist %}<tr><td>{{ c.n }}</td><td class="small">{{ c.section }} {{ c.section_title }}</td><td>{{ c.question }}</td><td class="st {{ 'non_compliant' if c.status=='deficient' else ('compliant' if c.status=='satisfactory' else 'not_assessed') }}">{{ c.status.replace('_',' ') }}</td><td>{{ c.n_findings or '' }}</td><td class="small">{{ c.detail }}</td></tr>{% endfor %}
 </tbody></table>
 
 <h2>6. Asset inventory ({{ rm.assets|length }})</h2>

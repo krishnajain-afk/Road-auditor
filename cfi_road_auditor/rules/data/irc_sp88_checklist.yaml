@@ -1,0 +1,121 @@
+# IRC:SP:88-2019 Stage-5 (Road Safety Audit of Existing Roads) checklist, paraphrased, mapped to CFI rule IDs.
+# "rules" = automated checks that inform the item; "manual" = true when the item fundamentally needs site/desk work
+# (crash records, skid resistance, controller phasing, retroreflectometer) that no camera pass can replace.
+sections:
+- id: "5.1"
+  title: Road function, classification and general
+  items:
+  - {n: 1, q: "Is the road's actual use (traffic mix, speeds, pedestrian activity, land use) consistent with its design class and posted speed?", rules: [SPD-001, PED-004, XS-005]}
+  - {n: 2, q: "Have crash records / black spots been reviewed and visited on site? Are previous audit recommendations implemented?", rules: [], manual: true}
+  - {n: 3, q: "Is the route consistent (no abrupt changes in standard, width, surface type)?", rules: [XS-001, XS-002]}
+  - {n: 4, q: "Are stray animals / cattle an observed hazard?", rules: [RSH-004]}
+- id: "5.2"
+  title: Cross-section
+  items:
+  - {n: 5, q: "Are lane widths adequate for the vehicle mix and speed?", rules: [XS-001, XS-002, XS-005]}
+  - {n: 6, q: "Are shoulders of adequate width, paved/compacted, flush, free of drop-offs?", rules: [], manual: true}
+  - {n: 7, q: "Is the median adequate, with no gaps allowing unsafe crossing; are openings properly designed and spaced?", rules: [XS-006, RSH-003]}
+  - {n: 8, q: "Are kerbs of appropriate type and height, visible (painted) at night?", rules: [PED-009]}
+  - {n: 9, q: "Is the road width continuous across bridges/culverts?", rules: [XS-002]}
+- id: "5.3"
+  title: Alignment and sight distance
+  items:
+  - {n: 10, q: "Is stopping sight distance available throughout (crests, curves, junctions)?", rules: [XS-003], manual: true}
+  - {n: 11, q: "Are sharp curves adequately signed, delineated and superelevated?", rules: [XS-003, SGN-006]}
+  - {n: 12, q: "Are there dangerous alignment combinations (curve at crest, reverse curves)?", rules: [XS-003, INT-004]}
+  - {n: 13, q: "Are gradients consistent with class; are climbing/escape lanes needed?", rules: [XS-004]}
+  - {n: 14, q: "Is roadside vegetation / hoarding obstructing sight lines?", rules: [SGN-007], manual: true}
+- id: "5.4"
+  title: Intersections
+  items:
+  - {n: 15, q: "Is the junction layout clear and conspicuous from each leg at the required distance?", rules: [INT-004, SGN-004]}
+  - {n: 16, q: "Is the sight triangle available for minor-road drivers?", rules: [], manual: true}
+  - {n: 17, q: "Is control (priority/STOP/GIVE WAY/signal) appropriate; are signs and lines present?", rules: [INT-001, INT-003]}
+  - {n: 18, q: "Are channelising islands, turning lanes and corner radii appropriate?", rules: [INT-003]}
+  - {n: 19, q: "Are pedestrian crossings and refuges provided on all legs with kerb ramps?", rules: [PED-008, PED-006, PED-009]}
+  - {n: 20, q: "Are median openings / U-turns safe, signed and lit?", rules: [RSH-003]}
+  - {n: 21, q: "Are signals visible, correctly phased, with pedestrian phases and unobstructed heads?", rules: [INT-002, INT-005, PED-007]}
+  - {n: 22, q: "Roundabouts: deflection, entry width, splitter islands, signs, lighting?", rules: [], manual: true}
+- id: "5.5"
+  title: Signs
+  items:
+  - {n: 23, q: "Are all necessary regulatory, warning and information signs present, none superfluous/conflicting?", rules: [SGN-001, SGN-005, SGN-006, MRK-003, SGN-004]}
+  - {n: 24, q: "Are sign sizes and siting distances correct for speed?", rules: [SGN-008]}
+  - {n: 25, q: "Are mounting heights and lateral clearances correct; are signs obstructing footpaths?", rules: [SGN-003, SGN-009]}
+  - {n: 26, q: "Are signs retroreflective, clean, legible by day and night, not faded/damaged?", rules: [SGN-007], manual: true}
+  - {n: 27, q: "Are advance direction, gantry and reassurance signs placed correctly?", rules: [], manual: true}
+- id: "5.6"
+  title: Markings and delineation
+  items:
+  - {n: 28, q: "Are centre/lane/edge lines present, of correct width and pattern, and retroreflective?", rules: [MRK-005, MRK-006]}
+  - {n: 29, q: "Are stop lines, give-way lines, zebra crossings, hatching, arrows present and correct?", rules: [MRK-001, MRK-002, MRK-004, MRK-007, INT-001]}
+  - {n: 30, q: "Are road studs, delineators, chevrons and object markers provided on curves, medians, islands and hazards?", rules: [SGN-006]}
+  - {n: 31, q: "Are old/conflicting markings removed?", rules: [], manual: true}
+- id: "5.7"
+  title: Lighting
+  items:
+  - {n: 32, q: "Is lighting provided where warranted (junctions, crossings, built-up areas, bus stops, humps)?", rules: [LGT-004, LGT-003]}
+  - {n: 33, q: "Is illumination level / uniformity adequate; dark spots or lamp outages?", rules: [LGT-001, LGT-002]}
+  - {n: 34, q: "Are lighting poles outside the clear zone or protected; not in the pedestrian zone?", rules: [RSH-001]}
+- id: "5.8"
+  title: Roadside hazards and barriers
+  items:
+  - {n: 35, q: "Are there unshielded hazards within the clear zone?", rules: [RSH-001]}
+  - {n: 36, q: "Are barriers warranted on embankments / bridges and provided?", rules: [], manual: true}
+  - {n: 37, q: "Are barriers of correct height, post spacing, continuous, with crash-worthy terminals?", rules: [RSH-002]}
+  - {n: 38, q: "Are barriers damaged or deformed?", rules: [RSH-002]}
+  - {n: 39, q: "Are poles / sign posts frangible where unprotected?", rules: [], manual: true}
+- id: "5.9"
+  title: Vulnerable road users
+  items:
+  - {n: 40, q: "Are footpaths continuous, of adequate clear width and height, surfaced, free of obstructions?", rules: [PED-001, PED-002, PED-003]}
+  - {n: 41, q: "Are kerb ramps and tactile paving provided at every crossing and footpath end?", rules: [PED-009], manual: true}
+  - {n: 42, q: "Are safe crossing points provided at desire lines and adequate spacing; marked, signed, lit, signalised or raised where needed?", rules: [PED-005, MRK-003, LGT-003]}
+  - {n: 43, q: "Are refuges provided on wide roads; do guardrails channelise pedestrians without trapping them?", rules: [PED-006, PED-010]}
+  - {n: 44, q: "Are squeeze points absent (footpath forced onto carriageway by poles, shelters, parking)?", rules: [PED-003, PED-004, PRK-001]}
+  - {n: 45, q: "Are cycle tracks / NMT lanes continuous, protected, free of parked vehicles?", rules: [NMT-001]}
+  - {n: 46, q: "Are schools, hospitals, markets and bus stops provided with calming, signs and crossings?", rules: [TC-003, BUS-001]}
+  - {n: 47, q: "Are two-wheeler hazards (slippery covers, barrier posts, edge drops, potholes) controlled?", rules: [PAV-001, PAV-005]}
+- id: "5.10"
+  title: Public transport
+  items:
+  - {n: 48, q: "Are bus stops located and designed safely (bays / far-side, sight distance, not on curves)?", rules: [BUS-001]}
+  - {n: 49, q: "Are passenger crossings provided behind bus stops?", rules: [PED-005]}
+- id: "5.11"
+  title: Parking and access
+  items:
+  - {n: 50, q: "Is parking prohibited near junctions, crossings, bus stops and on footpaths; enforced / marked?", rules: [PRK-001]}
+  - {n: 51, q: "Do property accesses create conflicts; is access control on NH maintained?", rules: [], manual: true}
+  - {n: 52, q: "Are encroachments (hawkers, materials, structures) within ROW / sight lines removed?", rules: [PRK-002, PED-003]}
+- id: "5.12"
+  title: Pavement surface
+  items:
+  - {n: 53, q: "Are potholes, rutting, ravelling, edge breaks, corrugations present; severity?", rules: [PAV-001, PAV-002, PAV-003, PAV-004]}
+  - {n: 54, q: "Is skid resistance adequate (junctions, curves, humps)?", rules: [], manual: true}
+  - {n: 55, q: "Are utility covers / inlets flush?", rules: [PAV-005]}
+  - {n: 56, q: "Is roughness within the acceptable band?", rules: [], manual: true}
+- id: "5.13"
+  title: Drainage
+  items:
+  - {n: 57, q: "Is surface drainage effective (no ponding, correct camber)?", rules: [PAV-006]}
+  - {n: 58, q: "Are drains covered / flush in urban areas and outside the clear zone in rural areas?", rules: [DRN-001]}
+  - {n: 59, q: "Are inlets / gullies adequate and maintained?", rules: [PAV-006], manual: true}
+- id: "5.14"
+  title: Speed management and traffic calming
+  items:
+  - {n: 60, q: "Are posted speed limits appropriate, consistent and signed at required intervals?", rules: [SGN-005, SPD-001]}
+  - {n: 61, q: "Are calming devices compliant with IRC:99 in geometry, location, marking and signing; illegal / unmarked humps?", rules: [TC-001, TC-002, SGN-001, SGN-002]}
+  - {n: 62, q: "Are gateway treatments provided at village / town entries on highways?", rules: [], manual: true}
+- id: "5.15"
+  title: Work zones and maintenance
+  items:
+  - {n: 63, q: "Are ongoing works protected per IRC:SP:55?", rules: [WZ-001, PAV-007]}
+  - {n: 64, q: "Is routine maintenance (vegetation, sign cleaning, lamps, marking renewal) evident?", rules: [SGN-007, MRK-006]}
+- id: "5.16"
+  title: Night-time audit
+  items:
+  - {n: 65, q: "Night drive-through: retroreflectivity of signs / markings / studs, lighting, visibility of hazards, kerbs, humps, pedestrians.", rules: [LGT-001, LGT-002, LGT-003, SGN-002]}
+- id: "5.17"
+  title: Bridges, culverts, railway crossings
+  items:
+  - {n: 66, q: "Approach guardrails, parapet heights, width continuity, signs, lighting; level-crossing gates / signs / markings.", rules: [RSH-002], manual: true}

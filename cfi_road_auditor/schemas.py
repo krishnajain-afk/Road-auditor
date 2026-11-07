@@ -388,6 +388,19 @@ class ComplianceItem(BaseModel):
     n_findings: int = 0
 
 
+class ChecklistItem(BaseModel):
+    """IRC:SP:88-2019 Stage-5 checklist line with the status derived from the mapped automated rules."""
+    section: str
+    section_title: str
+    n: int
+    question: str
+    rules: List[str] = Field(default_factory=list)
+    manual: bool = False
+    status: str = "manual"          # deficient | satisfactory | partially_assessed | not_assessed | manual
+    n_findings: int = 0
+    detail: str = ""
+
+
 class AuditSummary(BaseModel):
     overall_score: float                 # 0-100
     star_rating: int                     # 1-5 (iRAP-like, vehicle occupants + VRUs blended)
@@ -400,7 +413,8 @@ class AuditSummary(BaseModel):
     assessed_rules: int = 0
     compliant_rules: int = 0
     not_assessed_rules: int = 0
-    coverage_pct: float = 0.0            # fraction of checklist that could be assessed from the media
+    coverage_pct: float = 0.0            # fraction of applicable rules that could be assessed from the media
+    checklist_counts: Dict[str, int] = Field(default_factory=dict)   # IRC:SP:88 items by status
 
 
 class AuditReport(BaseModel):
@@ -411,6 +425,7 @@ class AuditReport(BaseModel):
     road_model: RoadModel
     findings: List[Finding]
     compliance: List[ComplianceItem]
+    checklist: List[ChecklistItem] = Field(default_factory=list)
     summary: AuditSummary
     methodology: Dict[str, Any] = Field(default_factory=dict)
     limitations: List[str] = Field(default_factory=list)

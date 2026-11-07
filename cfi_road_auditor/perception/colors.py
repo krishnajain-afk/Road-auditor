@@ -50,7 +50,7 @@ def red_mask(img_bgr: np.ndarray) -> np.ndarray:
 
 def blue_mask(img_bgr: np.ndarray) -> np.ndarray:
     h = hsv(img_bgr)
-    return cv2.inRange(h, (100, 110, 70), (128, 255, 255))
+    return cv2.inRange(h, (100, 140, 80), (126, 255, 255))
 
 
 def green_mask(img_bgr: np.ndarray) -> np.ndarray:

@@ -146,6 +146,8 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     # 5. rules + scoring
     engine = RuleEngine()
     findings, compliance = engine.evaluate(rm)
+    from .rules.engine import evaluate_checklist
+    checklist = evaluate_checklist(compliance)
     summary = summarise(rm, findings, compliance)
     # 6. report
     positioning = (f"GPS track with {len(track)} fixes; chainage from cumulative haversine distance" if len(track) >= 2
@@ -162,6 +164,9 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     }
     limitations = _limitations(rm, cam, names, vlm_used, len(track))
     report = build_report(rm, findings, compliance, summary, cfg.title, methodology, limitations)
+    report.checklist = checklist
+    from collections import Counter
+    report.summary.checklist_counts = dict(Counter(c.status for c in checklist))
     write_all_outputs(report, str(out_dir), cfg.sampling.segment_length_m)
     log.info("done in %.1fs: %d findings, score %.1f, outputs %s", time.time() - t0, len(findings), summary.overall_score, list(report.outputs))
     return report

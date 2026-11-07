@@ -29,7 +29,7 @@ rules:
   standard_ref: "IRC:82-2015 Cl. 4 & Table 1 (maintenance of bituminous surfaces); MoRTH pothole-free mandate"
   requirement: "Carriageway shall be free of potholes; potholes to be repaired within 24-48 h on NH/urban arterials (IRC:82 response norms)."
   check: {type: asset_conf, asset: pothole, min_conf: 0.3}
-  severity_by_size: {width_m: [[0.0, 0.3, medium], [0.3, 0.6, high], [0.6, 99, critical]]}
+  severity_by_size: {width_m: [[0.0, 0.3, medium], [0.3, 0.45, high], [0.45, 99, critical]]}
   severity: high
   likelihood: probable
   users: [motorcyclists, cyclists, car occupants]
@@ -113,9 +113,9 @@ rules:
 - id: XS-001
   category: cross_section
   title: Lane width below minimum
-  standard_ref: "IRC:86-2018 Table 4 (urban) / IRC:73-1980 Cl. 5 (rural): standard lane 3.5 m; absolute min 3.0 m on local streets"
-  requirement: "Lane width >= 3.5 m (3.25 m acceptable on urban collector/local; 3.0 m absolute minimum)."
-  check: {type: segment_metric, metric: lane_width_m, op: "<", threshold: {urban: 3.0, rural: 3.25, expressway: 3.5}, tolerance: 0.1}
+  standard_ref: "IRC:86-2018 Cl. 6 Table (urban) / IRC:73-1980 Cl. 5 (rural) / IRC:SP:99 (expressway): standard lane 3.5 m; 3.0 m minimum on local streets; 3.75 m expressway"
+  requirement: "Lane width >= 3.5 m on arterials / NH / SH; >= 3.25 m sub-arterial, collector, MDR; >= 3.0 m local streets / ODR / VR; 3.75 m expressway."
+  check: {type: segment_metric, metric: lane_width_m, op: "<", threshold: {urban_arterial: 3.5, urban_sub_arterial: 3.25, urban_collector: 3.25, urban_local: 3.0, national_highway: 3.5, state_highway: 3.5, major_district_road: 3.25, other_district_road: 3.0, village_road: 3.0, expressway: 3.75}, tolerance: 0.15}
   severity: medium
   likelihood: probable
   users: [all]
@@ -177,7 +177,7 @@ rules:
   title: Zebra crossing stripe width non-compliant
   standard_ref: "IRC:35-2015 Cl. 6.5.1 / Fig: zebra stripes 500 mm wide with 500 mm gaps (tolerance +/- 100 mm)"
   requirement: "Zebra stripes 500 mm wide, gaps 500 mm; stripes parallel to traffic flow."
-  check: {type: asset_attr, asset: zebra_crossing, attr: stripe_width_m, op: outside, threshold: [0.35, 0.70]}
+  check: {type: asset_attr, asset: zebra_crossing, attr: stripe_width_m, op: outside, threshold: [0.38, 0.65]}
   severity: low
   likelihood: occasional
   users: [pedestrians]
@@ -225,7 +225,7 @@ rules:
   title: Lane line width non-standard
   standard_ref: "IRC:35-2015 Cl. 4.2 / Table 1: lane lines 100 mm (urban) / 150 mm (rural highways); edge lines 150-200 mm"
   requirement: "Longitudinal lane lines 100 mm wide on urban roads, 150 mm on highways; edge lines 150-200 mm."
-  check: {type: asset_attr, asset: lane_line, attr: line_width_m, op: outside, threshold: {urban: [0.08, 0.22], rural: [0.12, 0.25], expressway: [0.14, 0.25]}}
+  check: {type: asset_attr, asset: lane_line, attr: line_width_m, op: outside, threshold: {urban: [0.08, 0.24], rural: [0.11, 0.26], expressway: [0.13, 0.26]}}
   severity: info
   likelihood: improbable
   users: [all]
@@ -249,7 +249,7 @@ rules:
   title: Stop line thickness non-standard
   standard_ref: "IRC:35-2015 Cl. 6.4: stop line 200 mm (urban) to 300 mm (rural / high speed)"
   requirement: "Stop line 200-300 mm wide across the approach lanes."
-  check: {type: asset_attr, asset: stop_line, attr: thickness_m, op: outside, threshold: [0.15, 0.45]}
+  check: {type: asset_attr, asset: stop_line, attr: thickness_m, op: outside, threshold: [0.17, 0.40]}
   severity: info
   likelihood: improbable
   users: [all]
@@ -412,7 +412,7 @@ rules:
   title: Sign mounted too low / too high
   standard_ref: "IRC:67-2022 Cl. 4: bottom edge 2.0-2.5 m above kerb in urban areas (pedestrian clearance); 1.5-2.0 m rural (edge of carriageway)"
   requirement: "Urban: sign bottom 2.0-2.5 m above footpath; rural: 1.5-2.0 m above road edge."
-  check: {type: asset_attr, asset: sign_unknown, attr: mounting_height_m, op: outside, threshold: {urban: [1.9, 2.6], rural: [1.4, 2.2], expressway: [1.8, 2.6]}}
+  check: {type: asset_attr, asset: sign_unknown, attr: mounting_height_m, op: outside, threshold: {urban: [1.9, 2.6], rural: [1.4, 2.3], expressway: [1.8, 2.6]}, tolerance: 0.0}
   severity: low
   likelihood: occasional
   users: [pedestrians, all]
@@ -485,9 +485,9 @@ rules:
 - id: TC-002
   category: traffic_calming
   title: Speed hump profile non-standard
-  standard_ref: "IRC:99-2018 Cl. 6.3: circular hump 3.7 m chord, 0.10 m height (25 km/h); speed table 6-9 m plateau, ramps 1:15-1:25"
-  requirement: "Hump chord 3.7 m, height 100 mm (+/- 10 mm); no abrupt, un-engineered bumps."
-  check: {type: asset_attr, asset: speed_hump, attr: band_length_m, op: outside, threshold: [2.5, 9.5]}
+  standard_ref: "IRC:99-2018 Cl. 6 Table (circular hump height 100 mm; chord 3.0 m @20 km/h, 3.7 m @25, 5.0 m @30 ... 9.5 m @50 km/h; speed table 6-9 m plateau, ramps 1:15-1:25); IRC:99-1988 3.7 m x 0.10 m"
+  requirement: "Hump chord 3.0-9.5 m matched to crossing speed, height 100 mm (+/- 10 mm); no abrupt, un-engineered bumps."
+  check: {type: asset_attr, asset: speed_hump, attr: band_length_m, op: outside, threshold: [2.7, 10.0]}
   severity: medium
   likelihood: probable
   users: [motorcyclists]
@@ -724,4 +724,78 @@ rules:
   users: [cyclists]
   recommendation: "Provide segregated NMT lane or shared-use path; lower speed limits."
   agency: "ULB"
+  confidence: medium
+
+- id: SGN-008
+  category: signs
+  title: Sign plate smaller than the size required for the design speed
+  standard_ref: "IRC:67-2012 Table 15.1 (retained 2022): 600 mm (<= 50 km/h), 750 mm (51-65), 900 mm (66-80), 1200 mm (> 80 km/h), 1500 mm expressway"
+  requirement: "Cautionary/mandatory sign size by design speed: 600 / 750 / 900 / 1200 / 1500 mm."
+  check: {type: asset_attr, asset: sign_unknown, attr: plate_size_m, op: "<", threshold: "sign_size_for_speed"}
+  severity: low
+  likelihood: occasional
+  users: [all]
+  recommendation: "Replace with correctly sized plate and Class C / Type XI sheeting."
+  agency: "Road owning agency"
+  confidence: high
+- id: SGN-009
+  category: signs
+  title: Sign lateral clearance from kerb below minimum
+  standard_ref: "IRC:67-2022 Cl. on siting: >= 0.3 m from kerb face (urban, 0.6 m in 2012 edition); 2-3 m from carriageway edge (rural)"
+  requirement: "Sign post >= 0.3 m behind kerb (urban), 2.0-3.0 m from carriageway edge (rural), never within the footpath clear width."
+  check: {type: asset_attr, asset: sign_unknown, attr: lateral_offset_m, op: "<", threshold: {urban: 0.3, rural: 2.0, expressway: 3.0}}
+  severity: low
+  likelihood: occasional
+  users: [all, pedestrians]
+  recommendation: "Relocate post to standard clearance."
+  agency: "Road owning agency"
+  confidence: high
+- id: INT-005
+  category: intersection
+  title: Signal head mounted below minimum height
+  standard_ref: "IRC:93-1985 Cl. 4.3: bottom of post-mounted head 2.5 m (max 3.0 m) above kerb; overhead heads >= 5.5 m clearance; >= 2 faces per approach"
+  requirement: "Post-mounted signal head bottom 2.5-3.0 m; overhead >= 5.5 m."
+  check: {type: asset_attr, asset: traffic_signal, attr: mounting_height_m, op: "<", threshold: 2.3}
+  severity: low
+  likelihood: occasional
+  users: [all]
+  recommendation: "Re-mount signal head to standard height; add secondary (far-side/overhead) head."
+  agency: "Traffic police / ULB"
+  confidence: high
+- id: XS-006
+  category: cross_section
+  title: Median narrower than minimum
+  standard_ref: "IRC:86-2018 Cl. 6 (median 1.2 m absolute minimum urban, 5 m desirable); IRC:SP:84 (4.5 m raised median built-up NH)"
+  requirement: "Median width >= 1.2 m (urban absolute minimum); >= 1.5 m where used as pedestrian refuge."
+  check: {type: segment_metric, metric: median_width_m, op: "<", threshold: 1.2}
+  severity: medium
+  likelihood: occasional
+  users: [pedestrians, all]
+  recommendation: "Widen median or provide protected refuges at crossings."
+  agency: "Road owning agency"
+  confidence: high
+- id: DRN-001
+  category: drainage
+  title: Open / uncovered drain adjacent to carriageway or footpath
+  standard_ref: "IRC:SP:50-2013 (urban drainage: covered drains in urban areas); IRC:SP:42-2014; IRC:103 Cl. 5"
+  requirement: "Drains within the footpath or within 1 m of the carriageway edge in urban areas shall be covered and flush."
+  check: {type: asset_conf, asset: drain, min_conf: 0.4}
+  severity: critical
+  likelihood: probable
+  users: [pedestrians, motorcyclists, cyclists]
+  recommendation: "Provide RCC / grating covers flush with surface; barricade immediately."
+  agency: "ULB"
+  confidence: high
+- id: LGT-004
+  category: lighting
+  title: No street lighting at junction / crossing in built-up area
+  standard_ref: "IS 1944 Part 1 (A1 arterial 30 lux, A2 15 lux, B1 8 lux, B2 4 lux; uniformity 0.4/0.3); IRC:SP:88 checklist 5.7"
+  requirement: "Lighting shall be provided at junctions, pedestrian crossings, bus stops and humps in built-up areas."
+  check: {type: segment_flag, flag: is_intersection, equals: true, count_zero: [street_light, pole]}
+  applies_to: [urban_arterial, urban_sub_arterial, urban_collector, urban_local]
+  severity: high
+  likelihood: probable
+  users: [pedestrians, all]
+  recommendation: "Provide LED luminaires at junction and crossing approaches."
+  agency: "ULB electrical"
   confidence: medium

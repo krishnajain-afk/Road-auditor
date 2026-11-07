@@ -77,6 +77,14 @@ def write_pdf(report: AuditReport, path: str) -> str:
     t = Table(rows, colWidths=[16 * mm, 55 * mm, 60 * mm, 20 * mm, 34 * mm], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.grey), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9edf2")), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
     el.append(t)
+    if report.checklist:
+        el += [PageBreak(), _p("6. IRC:SP:88-2019 Stage-5 checklist", h2)]
+        rows = [[_p(x, small) for x in ("#", "Section", "Question", "Status", "Findings")]]
+        for c in report.checklist:
+            rows.append([_p(c.n, small), _p(f"{c.section} {c.section_title}", small), _p(c.question, small), _p(c.status.replace("_", " "), small), _p(c.n_findings or "", small)])
+        t = Table(rows, colWidths=[8 * mm, 32 * mm, 100 * mm, 25 * mm, 15 * mm], repeatRows=1)
+        t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.grey), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9edf2")), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        el.append(t)
     el += [Spacer(1, 10), _p("This automated audit supports and does not replace a certified Road Safety Auditor (IRC:SP:88-2019). Items tagged needs_field_verification must be confirmed on site.", small)]
     doc.build(el)
     return path

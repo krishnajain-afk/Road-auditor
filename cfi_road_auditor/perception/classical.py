@@ -219,7 +219,12 @@ def detect_lane_lines(bev: np.ndarray, meta: Dict, frame: FrameRef, ipm: IPM,
             "lateral_m": round(lat, 2), "coverage": round(ln["coverage"], 2)}))
         if i > 0:
             gap = (ln["x"] - lines[i - 1]["x"]) / ppm
-            if 2.0 <= gap <= 4.5:
+            # IRC:35 edge lines sit ~150 mm inside the carriageway edge: the outer lanes extend to the kerb/edge
+            if i == 1 and not lines[0]["dashed"] and len(lines) >= 3:
+                gap += 0.15
+            if i == len(lines) - 1 and not ln["dashed"] and len(lines) >= 3:
+                gap += 0.15
+            if 2.0 <= gap <= 4.6:
                 widths.append(round(gap, 2))
     return dets, {"lane_widths_m": widths, "line_widths_m": [round(l["w_m"], 3) for l in lines], "n_lines": len(lines)}
 
@@ -314,7 +319,8 @@ def detect_potholes_classical(img: np.ndarray, road_mask: np.ndarray, frame: Fra
         return []
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     road_med = int(np.median(blur[road]))
-    filled = blur.copy(); filled[~road] = road_med          # mask-aware local reference (kerbs/footpath must not bias it)
+    paint = cv2.bitwise_or(C.white_mask(img), C.yellow_mask(img)) > 0
+    filled = blur.copy(); filled[~road | paint] = road_med   # mask-aware local reference: kerbs, footpath and paint must not bias it
     local = cv2.medianBlur(filled, 31)
     rel = local.astype(np.int16) - blur.astype(np.int16)
     inner = cv2.erode(road_mask, np.ones((9, 9), np.uint8)) > 0   # stay clear of the road edge / kerb shadow
@@ -332,6 +338,8 @@ def detect_potholes_classical(img: np.ndarray, road_mask: np.ndarray, frame: Fra
             continue
         x, y, bw, bh = cv2.boundingRect(c)
         if bw > 0.5 * w or bh > 0.4 * h:
+            continue
+        if x <= 2 or y <= 2 or x + bw >= w - 3 or y + bh >= h - 3:   # truncated by the frame border: not measurable
             continue
         solidity = area / (cv2.contourArea(cv2.convexHull(c)) + 1e-6)
         if solidity < 0.5:
@@ -355,7 +363,9 @@ def detect_potholes_classical(img: np.ndarray, road_mask: np.ndarray, frame: Fra
         mx, my = max(3, bw // 2), max(3, bh // 2)
         strips = [rel[max(0, y - my):y, x:x + bw], rel[y + bh:min(h, y + bh + my), x:x + bw],
                   rel[y:y + bh, max(0, x - mx):x], rel[y:y + bh, x + bw:min(w, x + bw + mx)]]
-        normal = sum(1 for st in strips if st.size and float(np.median(st)) < 10)
+        if any(st.size == 0 for st in strips):
+            continue
+        normal = sum(1 for st in strips if float(np.median(st)) < 10)
         if normal < 3:
             continue
         inside = gray[y:y + bh, x:x + bw][dark[y:y + bh, x:x + bw] > 0]
@@ -390,11 +400,15 @@ def _contour_shape(c) -> str:
 
 
 def detect_signs_by_colour(img: np.ndarray, frame: FrameRef, ipm: IPM) -> List[Detection]:
-    """Colour+shape sign candidates (IRC:67): red circle=mandatory, red triangle=cautionary, octagon=STOP,
-    inverted triangle=give way, blue rect/circle=informatory/compulsory direction."""
+    """Colour+shape sign candidates (IRC:67): red ring = mandatory, red triangle = cautionary, solid red octagon = STOP,
+    inverted triangle = give way, solid blue rect/circle = informatory / compulsory direction.
+
+    Discrimination uses fill ratio (solid vs ring) + polygon shape; lit signal lamps (small, in dark housings) and
+    sky patches are rejected explicitly."""
     h, w = img.shape[:2]
     hz = int(max(0, min(h, ipm.horizon_row)))
     top = img[: int(hz + 0.15 * h)]
+    hsv_top = C.hsv(top)
     out = []
     for colour, m in (("red", C.red_mask(top)), ("blue", C.blue_mask(top))):
         m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
@@ -405,34 +419,49 @@ def detect_signs_by_colour(img: np.ndarray, frame: FrameRef, ipm: IPM) -> List[D
                 continue
             x, y, bw, bh = cv2.boundingRect(c)
             ar = bw / (bh + 1e-6)
-            if not (0.5 <= ar <= 2.0) or bw > 0.3 * w:
+            if not (0.5 <= ar <= 2.0) or bw > 0.3 * w or bh > 0.3 * h:
                 continue
-            fill = area / (bw * bh + 1e-6)
+            if bw < 12:
+                continue
+            fill = float((m[y:y + bh, x:x + bw] > 0).mean())      # mask fraction (holes count), not contour area
             shape = _contour_shape(c)
+            roi = hsv_top[y:y + bh, x:x + bw]
+            white_in = float(((roi[:, :, 2] > 170) & (roi[:, :, 1] < 70)).mean())
+            # lit lamp test: very bright core + dark housing around -> traffic signal, not a sign
+            pad = max(2, bw // 2)
+            ring = hsv_top[max(0, y - pad):y + bh + pad, max(0, x - pad):x + bw + pad]
+            dark_frac = float((ring[:, :, 2] < 70).mean()) if ring.size else 0.0
+            if colour == "red" and bw < 30 and white_in < 0.03 and dark_frac > 0.35 and float((roi[:, :, 2] > 200).mean()) > 0.5:
+                continue   # lit lamp in a dark housing (traffic signal) - handled by detect_signal_heads
             if colour == "red":
-                if shape == "octagon":
-                    asset, label, conf = AssetType.SIGN_STOP, "stop_sign", 0.55
-                elif shape == "triangle":
-                    # orientation: apex down -> give way
+                if shape == "triangle":
                     M = cv2.moments(c)
                     cy = M["m01"] / (M["m00"] + 1e-6)
-                    asset, label, conf = (AssetType.SIGN_GIVE_WAY, "give_way", 0.5) if cy < y + bh / 2 else (AssetType.SIGN_CAUTIONARY, "cautionary_triangle", 0.5)
-                elif shape == "circle" and fill < 0.75:   # red ring with white centre
+                    asset, label, conf = (AssetType.SIGN_GIVE_WAY, "give_way", 0.5) if cy < y + bh / 2 else (AssetType.SIGN_CAUTIONARY, "cautionary_triangle", 0.55)
+                elif fill >= 0.55 and white_in < 0.35 and shape in ("octagon", "circle", "rect", "other"):
+                    # solid red plate with a little white text: STOP octagon
+                    if white_in < 0.01 and bw < 24:
+                        continue   # featureless small red blob (tail lamp, flag, cloth)
+                    asset, label, conf = AssetType.SIGN_STOP, "stop_sign", 0.55
+                elif fill < 0.55 and white_in >= 0.15 and shape in ("circle", "octagon", "other", "rect"):
+                    # red ring with white centre: mandatory / prohibitory
                     asset, label, conf = AssetType.SIGN_MANDATORY, "mandatory_circle", 0.5
                 else:
                     continue
             else:
+                # sky / water rejection: real blue plates are saturated and not huge
+                if float(roi[:, :, 1].mean()) < 140 or bh > 0.2 * h:
+                    continue
                 if shape in ("rect", "circle") and fill > 0.6:
                     asset, label, conf = AssetType.SIGN_INFORMATORY, "blue_sign", 0.45
                 else:
                     continue
-            # plausibility: sign plates are 0.6-0.9 m; estimate size from pixel size and assumed 15 m range is weak,
-            # so we only record pixel size and let fusion/VLM refine.
-            rng = ipm.range_from_width(bw, 0.75)   # IRC:67 medium plate 750 mm (600-900)
-            mount = ipm.height_above_ground(y + bh, rng)
-            out.append(_det(asset, label, conf, BBox(x1=x, y1=y, x2=x + bw, y2=y + bh), frame,
-                            {"colour": colour, "shape": shape, "forward_m": round(float(np.clip(rng, 4, 80)), 1),
-                             "mounting_height_m": round(float(mount), 2), "plate_px": int(bw)}))
+            rng = float(np.clip(ipm.range_from_width(bw, 0.75), 4, 80))   # IRC:67 medium plate 750 mm (600-900)
+            attrs = {"colour": colour, "shape": shape, "fill": round(float(fill), 2), "forward_m": round(rng, 1), "plate_px": int(bw),
+                     "lateral_m": round((x + bw / 2 - ipm.cam.cx) / ipm.cam.fx * rng, 2)}
+            if bw >= 22 and rng <= 40:   # height from the plate's bottom edge is only reliable for near, well-resolved plates
+                attrs["mounting_height_m"] = round(float(ipm.height_above_ground(y + bh, rng)), 2)
+            out.append(_det(asset, label, conf, BBox(x1=x, y1=y, x2=x + bw, y2=y + bh), frame, attrs))
     return out[:10]
 
 

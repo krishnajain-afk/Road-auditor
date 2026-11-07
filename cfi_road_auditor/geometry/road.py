@@ -98,7 +98,7 @@ def resample_track(xy: np.ndarray, step_m: float = 5.0) -> Tuple[np.ndarray, np.
 
 
 def curve_radius_from_track(track: Sequence[GeoPoint], window_m: float = 60.0, step_m: float = 5.0,
-                            max_radius: float = 5000.0) -> List[Tuple[float, float, float]]:
+                            max_radius: float = 5000.0, min_heading_change_deg: float = 6.0) -> List[Tuple[float, float, float]]:
     """Returns [(chainage_m, radius_m, confidence)] per resampled point. Straight -> radius = max_radius."""
     xy = project_track(track)
     if len(xy) < 5:
@@ -108,15 +108,20 @@ def curve_radius_from_track(track: Sequence[GeoPoint], window_m: float = 60.0, s
     out = []
     for i in range(len(rs)):
         a, b = max(0, i - n_half), min(len(rs), i + n_half + 1)
-        if b - a < 5:
+        if b - a < 5 or i < n_half or i >= len(rs) - n_half:   # incomplete windows at the track ends are unreliable
             out.append((float(s[i]), max_radius, 0.2))
             continue
         w = rs[a:b]
         try:
+            # significance: net heading change across the window must exceed what residual GNSS noise can fake
+            h0 = math.atan2(w[2, 1] - w[0, 1], w[2, 0] - w[0, 0]); h1 = math.atan2(w[-1, 1] - w[-3, 1], w[-1, 0] - w[-3, 0])
+            dth = abs((h1 - h0 + math.pi) % (2 * math.pi) - math.pi)
+            if dth < math.radians(min_heading_change_deg):
+                out.append((float(s[i]), max_radius, 0.6))
+                continue
             xc, yc, r = fit_circle(w)
             resid = np.abs(np.hypot(w[:, 0] - xc, w[:, 1] - yc) - r)
             conf = float(max(0.1, 1.0 - resid.mean() / 2.0))
-            # noise floor: GPS 2-3 m noise over 60 m window cannot resolve radii beyond ~1500 m
             r = min(r, max_radius)
         except Exception:
             r, conf = max_radius, 0.1

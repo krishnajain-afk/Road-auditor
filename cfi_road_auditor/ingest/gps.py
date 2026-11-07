@@ -215,7 +215,7 @@ def _to_track(raw, media: Optional[MediaMeta]) -> List[GeoPoint]:
         if out and abs(out[-1].t - p.t) < 1e-6:
             continue
         out.append(p)
-    return _annotate_speed_heading(out)
+    return smooth_track(_annotate_speed_heading(out))
 
 
 def _annotate_speed_heading(pts: List[GeoPoint]) -> List[GeoPoint]:
@@ -276,6 +276,39 @@ def track_from_video(media: MediaMeta) -> List[GeoPoint]:
     if gp:
         return _to_track(gp, media)
     return []
+
+
+def smooth_track(track: Sequence[GeoPoint], window_s: float = 4.0, min_step_m: float = 0.5) -> List[GeoPoint]:
+    """Suppress consumer-GNSS jitter before integrating distance.
+
+    Raw 1-10 Hz phone fixes carry 1-3 m noise; summing raw point-to-point distances inflates chainage by 2-3x and
+    produces fake sharp curves. We (1) centred-moving-average lat/lon/alt over `window_s`, (2) drop points that move
+    less than `min_step_m` (stationary jitter at signals).  Timestamps are preserved so frame sync is unaffected.
+    """
+    if len(track) < 5:
+        return list(track)
+    ts = np.array([p.t for p in track]); lat = np.array([p.lat for p in track]); lon = np.array([p.lon for p in track])
+    alt = np.array([p.alt_m if p.alt_m is not None else np.nan for p in track])
+    dt = float(np.median(np.diff(ts))) or 1.0
+    n = max(1, int(round(window_s / dt)))
+    if n > 1:
+        k = np.ones(n) / n
+        pad = n // 2
+        def sm(x):
+            if np.all(np.isnan(x)):
+                return x
+            xp = np.pad(x, (pad, n - 1 - pad), mode="edge")
+            return np.convolve(xp, k, mode="valid")
+        lat, lon = sm(lat), sm(lon)
+        if not np.all(np.isnan(alt)):
+            alt = sm(np.nan_to_num(alt, nan=float(np.nanmean(alt))))
+    out: List[GeoPoint] = []
+    for i in range(len(track)):
+        g = GeoPoint(lat=float(lat[i]), lon=float(lon[i]), alt_m=None if np.isnan(alt[i]) else float(alt[i]), t=float(ts[i]), hdop=track[i].hdop)
+        if out and haversine_m(out[-1].lat, out[-1].lon, g.lat, g.lon) < min_step_m and i < len(track) - 1:
+            continue
+        out.append(g)
+    return _annotate_speed_heading(out)
 
 
 def cumulative_chainage(track: Sequence[GeoPoint]) -> np.ndarray:

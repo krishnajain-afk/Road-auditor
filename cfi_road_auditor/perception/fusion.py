@@ -30,7 +30,7 @@ GATE_M = defaultdict(lambda: 15.0, {
     AssetType.POTHOLE: 6.0, AssetType.CRACK_LONGITUDINAL: 10.0, AssetType.CRACK_TRANSVERSE: 6.0, AssetType.CRACK_ALLIGATOR: 10.0,
     AssetType.ZEBRA_CROSSING: 30.0, AssetType.STOP_LINE: 25.0, AssetType.SPEED_HUMP: 25.0, AssetType.RUMBLE_STRIP: 20.0,
     AssetType.TRAFFIC_SIGNAL: 40.0, AssetType.SIGN_STOP: 30.0, AssetType.SIGN_MANDATORY: 30.0, AssetType.SIGN_CAUTIONARY: 30.0,
-    AssetType.SIGN_INFORMATORY: 30.0, AssetType.SIGN_UNKNOWN: 30.0, AssetType.POLE: 15.0, AssetType.STREET_LIGHT: 20.0,
+    AssetType.SIGN_INFORMATORY: 30.0, AssetType.SIGN_UNKNOWN: 30.0, AssetType.POLE: 25.0, AssetType.STREET_LIGHT: 25.0,
     AssetType.LANE_LINE: 1e9, AssetType.CENTRE_LINE: 1e9, AssetType.KERB: 60.0, AssetType.MANHOLE: 6.0,
 })
 NOMINAL_RANGE_M = 15.0   # for objects we cannot project (above horizon)
@@ -39,6 +39,7 @@ MIN_OBS_FOR_ASSET = {AssetType.POTHOLE: 1, AssetType.ZEBRA_CROSSING: 1}
 
 def localise(det: Detection, frame: FrameRef, ipm: IPM) -> None:
     """Fill det.ground_xy_m / ground_size_m / chainage_m / geo in place."""
+    cam = ipm.cam
     if det.bbox is None:
         det.chainage_m = frame.chainage_m
         det.geo = frame.geo
@@ -57,13 +58,20 @@ def localise(det: Detection, frame: FrameRef, ipm: IPM) -> None:
             fwd = g[1]
     if "forward_m" in det.attributes:
         fwd = float(det.attributes["forward_m"])
+        if det.ground_xy_m is None and "lateral_m" in det.attributes:
+            det.ground_xy_m = (float(det.attributes["lateral_m"]), fwd)
     elif det.asset in (AssetType.TRAFFIC_SIGNAL,) and det.bbox is not None:
         fwd = float(np.clip(ipm.range_from_width(det.bbox.w, 0.35), 5, 80))   # signal head ~300-350 mm wide
         det.attributes["forward_m"] = round(fwd, 1)
+        det.ground_xy_m = ((det.bbox.cx - cam.cx) / cam.fx * fwd, fwd)
+        if det.bbox.w >= 14 and fwd <= 40:
+            det.attributes["mounting_height_m"] = round(ipm.height_above_ground(det.bbox.y2, fwd), 2)
     elif det.asset in (AssetType.SIGN_STOP, AssetType.SIGN_UNKNOWN) and det.bbox is not None:
         fwd = float(np.clip(ipm.range_from_width(det.bbox.w, 0.75), 4, 80))
         det.attributes["forward_m"] = round(fwd, 1)
-        det.attributes.setdefault("mounting_height_m", round(ipm.height_above_ground(det.bbox.y2, fwd), 2))
+        det.ground_xy_m = ((det.bbox.cx - cam.cx) / cam.fx * fwd, fwd)
+        if det.bbox.w >= 22 and fwd <= 40:
+            det.attributes.setdefault("mounting_height_m", round(ipm.height_above_ground(det.bbox.y2, fwd), 2))
     if det.asset in (AssetType.POLE, AssetType.STREET_LIGHT, AssetType.TREE) and "lateral_m" in det.attributes:
         half = float(frame_half_width(frame)) if frame_half_width(frame) else 3.5
         det.attributes["lateral_offset_m"] = round(max(0.0, abs(float(det.attributes["lateral_m"])) - half), 2)
@@ -153,10 +161,37 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
                 geo=best.geo, side=_side(best, cam), confidence=float(conf), n_observations=len(cl),
                 best_frame_index=best.frame_index, best_frame_path=fr.path if fr else None,
                 bbox_in_best_frame=best.bbox, size_m=size, attributes=attrs, sources=sources))
+    assets = _dedupe_signs(assets)
     assets.sort(key=lambda a: a.chainage_m)
     for i, a in enumerate(assets, 1):
         a.asset_id = f"A{i:04d}"
     return assets
+
+
+_SIGN_TYPES = {AssetType.SIGN_STOP, AssetType.SIGN_MANDATORY, AssetType.SIGN_CAUTIONARY, AssetType.SIGN_GIVE_WAY,
+               AssetType.SIGN_INFORMATORY, AssetType.SIGN_UNKNOWN, AssetType.SIGN_SPEED_LIMIT}
+
+
+def _dedupe_signs(assets: List[Asset], gate_m: float = 12.0) -> List[Asset]:
+    """One physical plate can be labelled differently frame to frame (STOP octagon vs mandatory ring). Keep the label
+    with the most observations (then confidence) among sign assets on the same side within `gate_m`."""
+    signs = sorted([a for a in assets if a.asset in _SIGN_TYPES], key=lambda a: a.chainage_m)
+    others = [a for a in assets if a.asset not in _SIGN_TYPES]
+    kept: List[Asset] = []
+    for a in signs:
+        merged = False
+        for k in kept:
+            if abs(k.chainage_m - a.chainage_m) <= gate_m and (k.side == a.side or "centre" in (k.side, a.side)):
+                winner, loser = (k, a) if (k.n_observations, k.confidence) >= (a.n_observations, a.confidence) else (a, k)
+                winner.n_observations += loser.n_observations
+                winner.attributes.setdefault("alternative_labels", []).append(loser.asset.value)
+                if winner is a:
+                    kept.remove(k); kept.append(a)
+                merged = True
+                break
+        if not merged:
+            kept.append(a)
+    return others + kept
 
 
 def count_moving_per_frame(detections: Sequence[Detection]) -> Dict[int, Dict[str, int]]:

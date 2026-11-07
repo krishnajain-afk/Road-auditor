@@ -54,6 +54,10 @@ def write_xlsx(report: AuditReport, path: str) -> str:
     ws4.append(["segment_id", "start_m", "end_m", *keys, "assets"])
     for s in report.road_model.segments:
         ws4.append([s.segment_id, s.start_m, s.end_m, *[round(s.metrics[k], 3) if k in s.metrics else "" for k in keys], str(s.counts)])
+    ws6 = wb.create_sheet("IRC_SP88_Checklist")
+    ws6.append(["n", "section", "section_title", "question", "status", "n_findings", "rules", "detail", "auditor_remarks"])
+    for c in report.checklist:
+        ws6.append([c.n, c.section, c.section_title, c.question, c.status, c.n_findings, ", ".join(c.rules), c.detail, ""])
     ws5 = wb.create_sheet("Summary")
     sm = report.summary
     for k, v in (("report_id", report.report_id), ("title", report.title), ("generated_at", report.generated_at), ("overall_score", sm.overall_score),

@@ -90,7 +90,8 @@ def evaluate(n: int, out_dir: str, seed0: int = 1000, use_yolo: bool = False, ca
                         continue
                     dist = abs(fwd - g["forward_m"])
                     tol_f = 3.0 if c not in ("sign", "traffic_signal", "pole") else 8.0
-                    ok = dist < tol_f and (lat is None or g.get("lateral_m") is None or abs(lat - g["lateral_m"]) < (1.5 if c != "pothole" else 1.0))
+                    tol_l = 1.0 if c == "pothole" else (3.0 if c in ("sign", "traffic_signal", "pole") else 1.5)
+                    ok = dist < tol_f and (lat is None or g.get("lateral_m") is None or abs(lat - g["lateral_m"]) < tol_l)
                 if ok and dist < bd:
                     best, bd = j, dist
             if best is None:
