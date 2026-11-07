@@ -128,5 +128,17 @@ frames (an asset seen in >= 2 frames gets a confidence boost), which is what lif
 target. On the synthetic 600 m corridor the fused pipeline finds all 4 potholes (the real-image model alone finds 3,
 the classical detector alone finds 3, and they miss different ones).
 
-`cfi_signs.pt` (YOLOv8n, 21 Indian expressway sign classes, 221 train / 64 val / 31 test images) - see the training log
-`runs/detect/runs/itsd/results.csv`; the test split result is appended below when training finishes.
+`cfi_signs.pt` (YOLOv8n, 21 Indian expressway sign classes, 221 train / 64 val / 31 test images, early-stopped at epoch
+29 on CPU), on the 31-image test split (49 signs):
+
+| Metric | Value |
+|---|---|
+| Precision | 0.461 |
+| Recall | 0.377 |
+| mAP@0.5 | 0.370 |
+| mAP@0.5:0.95 | 0.198 |
+
+This is a **prototype**: 221 images for 21 classes is far too little. It is shipped because it already reads sign text
+classes the colour detector cannot (e.g. "Truck Speed 80" at 0.99 confidence on a held-out image feeds `posted speed`),
+but the colour/shape detector and COCO stop-sign class remain the primary sign sources until a few thousand labelled
+Indian sign crops are added (IRTSD / own footage). Train with `scripts/train_detectors.sh` (GPU: `DEVICE=0`).
