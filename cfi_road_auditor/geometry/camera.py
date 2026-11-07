@@ -151,53 +151,59 @@ class IPM:
 
 # ------------------------------------------------------------------ auto-calibration
 def estimate_vanishing_point(gray: np.ndarray) -> Optional[Tuple[float, float, float]]:
-    """Vanishing point of road-parallel lines (lane lines, kerbs, building edges) via Hough + RANSAC voting.
+    """Vanishing point of road-parallel lines via Hough segments + cross-family intersection voting.
 
-    Returns (u, v, confidence). Used to estimate camera pitch: tan(pitch) = (cy - v_vp)/fy.
+    Segments are split into two families by direction (bottom-left -> VP vs bottom-right -> VP). Only cross-family
+    pairs are intersected, which removes the noisy near-parallel same-side intersections that otherwise dominate the vote.
+    A VP is accepted only inside a plausible window (central 70 % horizontally, 15-75 % vertically).
+    Returns (u, v, confidence) or None.
     """
     h, w = gray.shape[:2]
-    edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 60, 160)
-    edges[: int(h * 0.3), :] = 0  # ignore sky/top area
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=60, minLineLength=w // 10, maxLineGap=20)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blur, 50, 140)
+    # add bright-marking edges (lane lines) which are weak in plain Canny on low-contrast asphalt
+    _, bright = cv2.threshold(blur, int(min(250, blur.mean() + 1.5 * blur.std())), 255, cv2.THRESH_BINARY)
+    edges = cv2.bitwise_or(edges, cv2.Canny(bright, 50, 150))
+    edges[: int(h * 0.15), :] = 0
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=40, minLineLength=max(20, w // 16), maxLineGap=25)
     if lines is None or len(lines) < 4:
         return None
-    segs = []
-    for x1, y1, x2, y2 in np.asarray(lines).reshape(-1, 4):
-        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
-        a = abs(ang) % 180
-        if 15 < a < 75 or 105 < a < 165:  # diagonal lines converge to the VP; skip near-horizontal/vertical
-            segs.append((float(x1), float(y1), float(x2), float(y2), math.hypot(x2 - x1, y2 - y1)))
-    if len(segs) < 4:
+    left, right = [], []
+    for x1, y1, x2, y2 in np.asarray(lines, dtype=np.float64).reshape(-1, 4):
+        if y1 < y2:  # orient bottom -> top
+            x1, y1, x2, y2 = x2, y2, x1, y1
+        dx, dy = x2 - x1, y2 - y1
+        ang = abs(math.degrees(math.atan2(-dy, abs(dx))))   # 0 = horizontal, 90 = vertical
+        if not (12 < ang < 80):
+            continue
+        seg = (float(x1), float(y1), float(x2), float(y2), math.hypot(dx, dy))
+        (left if dx > 0 else right).append(seg)
+    if len(left) < 2 or len(right) < 2:
         return None
-    # intersections of random pairs, weighted vote
     rng = np.random.default_rng(0)
     pts = []
-    n = len(segs)
-    for _ in range(min(3000, n * n)):
-        i, j = rng.integers(0, n, 2)
-        if i == j:
+    n_pairs = min(4000, len(left) * len(right))
+    for _ in range(n_pairs):
+        a_ = left[rng.integers(0, len(left))]; b_ = right[rng.integers(0, len(right))]
+        p_ = _intersect(a_, b_)
+        if p_ is None:
             continue
-        p = _intersect(segs[i], segs[j])
-        if p is None:
-            continue
-        u, v = p
-        if -0.5 * w < u < 1.5 * w and 0 < v < h:
-            pts.append((u, v, segs[i][4] * segs[j][4]))
-    if len(pts) < 10:
+        u, v = p_
+        if 0.15 * w < u < 0.85 * w and 0.15 * h < v < 0.75 * h:
+            pts.append((u, v, a_[4] * b_[4]))
+    if len(pts) < 8:
         return None
     arr = np.array(pts)
-    # density peak via 2D histogram
-    hb, xe, ye = np.histogram2d(arr[:, 0], arr[:, 1], bins=(48, 36), range=[[-0.5 * w, 1.5 * w], [0, h]], weights=arr[:, 2])
+    hb, xe, ye = np.histogram2d(arr[:, 0], arr[:, 1], bins=(40, 30), range=[[0.15 * w, 0.85 * w], [0.15 * h, 0.75 * h]], weights=arr[:, 2])
     k = np.unravel_index(np.argmax(hb), hb.shape)
     u = (xe[k[0]] + xe[k[0] + 1]) / 2
     v = (ye[k[1]] + ye[k[1] + 1]) / 2
     conf = float(hb.max() / (hb.sum() + 1e-9))
-    # refine with points near the peak
-    near = arr[(np.abs(arr[:, 0] - u) < w * 0.05) & (np.abs(arr[:, 1] - v) < h * 0.05)]
+    near = arr[(np.abs(arr[:, 0] - u) < w * 0.04) & (np.abs(arr[:, 1] - v) < h * 0.04)]
     if len(near) >= 5:
         u = float(np.average(near[:, 0], weights=near[:, 2]))
         v = float(np.average(near[:, 1], weights=near[:, 2]))
-    return (u, v, min(1.0, conf * 5))
+    return (u, v, min(1.0, conf * 4))
 
 
 def _intersect(a, b):

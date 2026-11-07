@@ -492,9 +492,27 @@ def detect_signal_heads(img: np.ndarray, frame: FrameRef, ipm: IPM) -> List[Dete
             dark_frac = (C.hsv(ring)[:, :, 2] < 70).mean() if ring.size else 0
             if dark_frac < 0.25:  # lamps live in black housings
                 continue
+            core = top[max(0, int(y - 0.5 * r)):int(y + 0.5 * r) + 1, max(0, int(x - 0.5 * r)):int(x + 0.5 * r) + 1]
+            if core.size:
+                ch = C.hsv(core)
+                if float(((ch[:, :, 1] < 70) & (ch[:, :, 2] > 170)).mean()) > 0.2:
+                    continue   # white centre -> a red/blue sign ring, not a lamp
+            # range from the lit-core diameter (IRC:93 lens 200-300 mm; the thresholded core is ~200 mm)
+            rng = float(np.clip(ipm.cam.fx * 0.20 / max(2.0, 2 * r), 4, 80))
+            attrs = {"colour": colour, "lamp_radius_px": round(float(r), 1), "forward_m": round(rng, 1),
+                     "lateral_m": round((x - ipm.cam.cx) / ipm.cam.fx * rng, 2)}
+            if r >= 3 and rng <= 45:
+                attrs["mounting_height_m"] = round(float(ipm.height_above_ground(y1, rng)), 2)   # bottom of housing box
             out.append(_det(AssetType.TRAFFIC_SIGNAL, f"signal_{colour}", 0.5 + 0.3 * min(1.0, dark_frac),
-                            BBox(x1=x0, y1=y0, x2=x1, y2=y1), frame, {"colour": colour}))
-    return out[:6]
+                            BBox(x1=x0, y1=y0, x2=x1, y2=y1), frame, attrs))
+    # one head can light several lamps / be found in two hue bands: merge overlapping boxes, keep the best
+    out.sort(key=lambda d: -d.confidence)
+    kept: List[Detection] = []
+    for d in out:
+        if any(d.bbox.iou(k.bbox) > 0.2 or (abs(d.bbox.cx - k.bbox.cx) < 1.5 * k.bbox.w and abs(d.bbox.cy - k.bbox.cy) < 3 * k.bbox.h) for k in kept):
+            continue
+        kept.append(d)
+    return kept[:6]
 
 
 def detect_poles(img: np.ndarray, frame: FrameRef, ipm: IPM) -> List[Detection]:
@@ -632,8 +650,9 @@ class ClassicalDetector(Detector):
             for d in zebra + stops + humps:
                 z0 = d.attributes.get("forward_m")
                 L = d.attributes.get("crossing_length_m") or d.attributes.get("band_length_m") or d.attributes.get("thickness_m") or 0.5
+                margin = 0.25 if d.asset == AssetType.STOP_LINE else 0.7
                 if z0 is not None:
-                    bands.append((z0 - 0.7, z0 + L + 0.7))
+                    bands.append((z0 - margin, z0 + L + margin))
             dets += detect_potholes_classical(img, road, frame, self.ipm, bands, (cw[0] / 2) if cw else None)
         # scale hint: IRC:35 zebra stripe period is 1.0 m (0.5 stripe + 0.5 gap) -> corrects unknown camera height
         hints = [d.attributes["stripe_period_m"] for d in zebra if d.attributes.get("n_stripes", 0) >= 4]

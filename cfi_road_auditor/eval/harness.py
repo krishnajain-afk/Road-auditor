@@ -25,7 +25,7 @@ from ..schemas import FrameRef
 from .synth import SceneSpec, random_spec, render
 
 CLASSES = ["zebra_crossing", "stop_line", "speed_hump", "pothole", "sign", "traffic_signal", "lane_line", "pole"]
-TOL = {"height_m": 0.1, "lane_width_m": 0.15, "line_width_m": 0.06, "stripe_width_m": 0.10, "crossing_length_m": 0.5, "pothole_width_m": 0.2,
+TOL = {"height_m": 0.1, "carriageway_width_relerr": 0.05, "lane_width_m": 0.15, "line_width_m": 0.06, "stripe_width_m": 0.10, "crossing_length_m": 0.5, "pothole_width_m": 0.2,
        "pothole_forward_m": 1.0, "mounting_height_m": 0.3, "pitch_deg": 0.5, "carriageway_width_m": 0.3}
 
 
@@ -64,6 +64,9 @@ def evaluate(n: int, out_dir: str, seed0: int = 1000, use_yolo: bool = False, ca
         road_w = spec.lane_width_m * spec.n_lanes
         if m.get("carriageway_width_m"):
             errs["carriageway_width_m"].append(abs(m["carriageway_width_m"] - road_w))
+            errs["carriageway_width_relerr"].append(abs(m["carriageway_width_m"] - road_w) / road_w)
+        else:
+            errs["carriageway_width_missing"].append(1.0)
         if m.get("lane_widths_m"):
             errs["lane_width_m"].append(abs(float(np.median(m["lane_widths_m"])) - spec.lane_width_m))
         else:
