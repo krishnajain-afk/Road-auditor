@@ -608,10 +608,11 @@ def detect_painted_kerb(bev: np.ndarray, meta: Dict, frame: FrameRef, ipm: IPM) 
 class ClassicalDetector(Detector):
     name = "classical_cv"
 
-    def __init__(self, cam: CameraModel, enable_potholes: bool = True):
+    def __init__(self, cam: CameraModel, enable_potholes: bool = True, pothole_conf_cap: float = 0.65):
         self.cam = cam
         self.ipm = IPM(cam)
         self.enable_potholes = enable_potholes
+        self.pothole_conf_cap = pothole_conf_cap
         self.last_metrics: Dict[str, object] = {}
         self.last_scale_hint: Optional[float] = None
 
@@ -653,7 +654,9 @@ class ClassicalDetector(Detector):
                 margin = 0.25 if d.asset == AssetType.STOP_LINE else 0.7
                 if z0 is not None:
                     bands.append((z0 - margin, z0 + L + margin))
-            dets += detect_potholes_classical(img, road, frame, self.ipm, bands, (cw[0] / 2) if cw else None)
+            for d in detect_potholes_classical(img, road, frame, self.ipm, bands, (cw[0] / 2) if cw else None):
+                d.confidence = min(d.confidence, self.pothole_conf_cap)
+                dets.append(d)
         # scale hint: IRC:35 zebra stripe period is 1.0 m (0.5 stripe + 0.5 gap) -> corrects unknown camera height
         hints = [d.attributes["stripe_period_m"] for d in zebra if d.attributes.get("n_stripes", 0) >= 4]
         self.last_scale_hint = (1.0 / float(np.median(hints))) if hints else None

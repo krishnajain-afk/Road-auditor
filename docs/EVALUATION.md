@@ -112,4 +112,21 @@ real-footage validation loop in section 6 - which needs footage recorded by you,
 
 ## 7. Trained detector results
 
-(filled in automatically by `scripts/train_detectors.sh` output - see below)
+`cfi_damage.pt` (YOLOv8n, 480 px, 30 epochs on CPU, 720 real pothole images from public GitHub datasets), validated on
+60 held-out real images with 201 labelled potholes:
+
+| Metric | Value |
+|---|---|
+| Precision | 0.714 |
+| Recall | 0.682 |
+| mAP@0.5 | 0.734 |
+| mAP@0.5:0.95 | 0.444 |
+
+This is in line with the published state of the art for single-frame pothole detection (CRDDC 2022 top teams F1 ~0.76,
+India board ~0.5). In the pipeline the learned detector and the conservative classical detector are fused across
+frames (an asset seen in >= 2 frames gets a confidence boost), which is what lifts register-level precision towards the
+target. On the synthetic 600 m corridor the fused pipeline finds all 4 potholes (the real-image model alone finds 3,
+the classical detector alone finds 3, and they miss different ones).
+
+`cfi_signs.pt` (YOLOv8n, 21 Indian expressway sign classes, 221 train / 64 val / 31 test images) - see the training log
+`runs/detect/runs/itsd/results.csv`; the test split result is appended below when training finishes.

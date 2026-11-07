@@ -36,6 +36,14 @@ RDD_MAP: Dict[str, AssetType] = {
     "speedbump": AssetType.SPEED_HUMP, "speed breaker": AssetType.SPEED_HUMP, "waterlogging": AssetType.WATERLOGGING,
 }
 SIGN_MAP: Dict[str, AssetType] = {
+    # Indian Expressway Traffic Sign Dataset (cfi_signs.pt) class names
+    "Ahead only": AssetType.SIGN_MANDATORY, "Bump": AssetType.SIGN_SPEED_BREAKER, "Car Speed 100": AssetType.SIGN_SPEED_LIMIT,
+    "Danger": AssetType.SIGN_CAUTIONARY, "Go Slow": AssetType.SIGN_CAUTIONARY, "Lane sign": AssetType.SIGN_INFORMATORY,
+    "Left Curve": AssetType.SIGN_CAUTIONARY, "No Passing": AssetType.SIGN_MANDATORY, "No Stopping": AssetType.SIGN_MANDATORY,
+    "No U Turn": AssetType.SIGN_MANDATORY, "No Waiting": AssetType.SIGN_MANDATORY, "Phone": AssetType.SIGN_INFORMATORY,
+    "Right Curve": AssetType.SIGN_CAUTIONARY, "Speed 100": AssetType.SIGN_SPEED_LIMIT, "Speed 30": AssetType.SIGN_SPEED_LIMIT,
+    "Speed 50": AssetType.SIGN_SPEED_LIMIT, "Speed 80": AssetType.SIGN_SPEED_LIMIT, "Steep decent": AssetType.SIGN_CAUTIONARY,
+    "Truck Speed 80": AssetType.SIGN_SPEED_LIMIT, "Tunnel": AssetType.SIGN_INFORMATORY, "Work in Progress": AssetType.SIGN_CAUTIONARY,
     "stop": AssetType.SIGN_STOP, "give way": AssetType.SIGN_GIVE_WAY, "yield": AssetType.SIGN_GIVE_WAY,
     "speed limit": AssetType.SIGN_SPEED_LIMIT, "pedestrian crossing": AssetType.SIGN_PEDESTRIAN_CROSSING,
     "school": AssetType.SIGN_SCHOOL, "speed breaker": AssetType.SIGN_SPEED_BREAKER, "hump": AssetType.SIGN_SPEED_BREAKER,
@@ -92,7 +100,12 @@ class YoloDetector(Detector):
                 continue  # COCO classes irrelevant to road audit
             x1, y1, x2, y2 = [float(v) for v in b.xyxy[0].tolist()]
             poly = [(float(p[0]), float(p[1])) for p in polys[i]] if polys is not None and i < len(polys) else None
+            attrs = {"model": self.name}
+            if self.role == "sign":
+                attrs["text"] = label
+                digits = "".join(ch for ch in label if ch.isdigit())
+                if asset == AssetType.SIGN_SPEED_LIMIT and digits:
+                    attrs["speed_limit_kmph"] = int(digits)
             out.append(Detection(asset=asset, label=label, confidence=conf, bbox=BBox(x1=x1, y1=y1, x2=x2, y2=y2),
-                                 polygon=poly, frame_index=frame.index, frame_t=frame.t, source=Source.YOLO,
-                                 attributes={"model": self.name}))
+                                 polygon=poly, frame_index=frame.index, frame_t=frame.t, source=Source.YOLO, attributes=attrs))
         return out

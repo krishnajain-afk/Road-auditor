@@ -48,5 +48,7 @@ def build_detectors(cfg: PerceptionConfig, cam: CameraModel) -> List[Detector]:
     if cfg.use_classical:
         from .classical import ClassicalDetector
         has_damage = any(getattr(d, "role", "") == "damage" for d in dets)
-        dets.append(ClassicalDetector(cam, enable_potholes=not has_damage))
+        # keep the classical pothole detector as a second, conservative source even when a learned model exists:
+        # fusion merges co-located observations, so the union raises recall at little precision cost
+        dets.append(ClassicalDetector(cam, enable_potholes=True, pothole_conf_cap=0.55 if has_damage else 0.65))
     return dets
