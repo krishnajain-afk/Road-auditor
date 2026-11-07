@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cfi-road-auditor"
+version = "0.1.0"
+description = "CFI Road Auditor: automated Road Safety Audit (RSA) for Indian roads from phone/action-cam video and photos, checked against IRC/MoRTH standards."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [{name = "CFI Road Auditor Team"}]
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python-headless>=4.9",
+  "pillow>=10",
+  "scipy>=1.11",
+  "shapely>=2.0",
+  "pyproj>=3.6",
+  "gpxpy>=1.6",
+  "exifread>=3.0",
+  "ezdxf>=1.3",
+  "reportlab>=4.0",
+  "jinja2>=3.1",
+  "pydantic>=2.5",
+  "pyyaml>=6.0",
+  "tqdm>=4.66",
+  "pandas>=2.1",
+  "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+ml = ["torch>=2.2", "torchvision>=0.17", "ultralytics>=8.2", "onnxruntime>=1.17", "timm>=0.9"]
+api = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "python-multipart>=0.0.9"]
+vlm = ["anthropic>=0.40"]
+dev = ["pytest>=8", "pytest-cov", "ruff"]
+
+[project.scripts]
+cfi-audit = "cfi_road_auditor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cfi_road_auditor*"]
+
+[tool.setuptools.package-data]
+cfi_road_auditor = ["rules/data/*.yaml", "report/templates/*.html", "report/templates/*.css"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"

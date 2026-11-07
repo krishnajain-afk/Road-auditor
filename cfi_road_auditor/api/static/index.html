@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CFI Road Auditor</title>
+<style>
+:root{--ink:#14181f;--muted:#5d6675;--line:#dfe3ea;--brand:#0b5fff;--bg:#f6f8fb;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{background:#101828;color:#fff;padding:18px 24px}header h1{margin:0;font-size:20px}header p{margin:4px 0 0;color:#b9c2d0;font-size:13px}
+main{max-width:1000px;margin:24px auto;padding:0 16px;display:grid;gap:18px;grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px}input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+button{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer;margin-top:14px;width:100%}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.status{font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap;background:#0f172a;color:#d1e3ff;padding:12px;border-radius:8px;min-height:120px}
+.links a{display:inline-block;margin:6px 8px 0 0;padding:8px 12px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--brand);font-size:13px;background:#fff}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.kpi div{border:1px solid var(--line);border-radius:10px;padding:10px}.kpi b{display:block;font-size:22px}.kpi span{font-size:11px;color:var(--muted)}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+</style></head><body>
+<header><h1>CFI Road Auditor</h1><p>Upload phone / action-cam / smart-glasses video or a photo. Get an IRC:SP:88-style Road Safety Audit: findings, compliance matrix, GIS, CAD and Excel registers.</p></header>
+<main>
+<section class="card"><h3 style="margin-top:0">New audit</h3>
+<form id="f">
+<label>Video or photo *</label><input type="file" name="media" required accept="video/*,image/*">
+<label>GPS track (optional: .gpx / .csv / DJI .srt / .nmea)</label><input type="file" name="track">
+<div class="row"><div><label>Road class</label><select name="road_class">
+<option value="urban_arterial">Urban arterial</option><option value="urban_sub_arterial">Urban sub-arterial</option><option value="urban_collector">Urban collector</option><option value="urban_local">Urban local street</option>
+<option value="national_highway">National Highway</option><option value="state_highway">State Highway</option><option value="major_district_road">Major District Road</option><option value="other_district_road">Other District Road</option><option value="village_road">Village Road</option><option value="expressway">Expressway</option></select></div>
+<div><label>Terrain</label><select name="terrain"><option>plain</option><option>rolling</option><option>mountainous</option><option>steep</option></select></div></div>
+<div class="row"><div><label>Title</label><input name="title" value="Road Safety Audit"></div><div><label>Location / junction</label><input name="location" placeholder="e.g. MG Road, Pune"></div></div>
+<div class="row"><div><label>Posted speed (km/h)</label><input name="posted_speed" type="number" step="5"></div><div><label>Assumed speed if no GPS (km/h)</label><input name="assumed_speed" type="number" value="30"></div></div>
+<div class="row"><div><label>Camera height above road (m)</label><input name="camera_height" type="number" step="0.05" value="1.3"></div><div><label>Camera pitch down (deg)</label><input name="camera_pitch" type="number" step="0.5" value="2"></div></div>
+<div class="row"><div><label>Horizontal FOV (deg)</label><input name="hfov" type="number" step="1" value="70"></div><div><label>Frame interval (s)</label><input name="interval" type="number" step="0.5" value="1"></div></div>
+<div class="row"><div><label>Max frames</label><input name="max_frames" type="number" value="600"></div><div><label>Segment length (m)</label><input name="segment" type="number" value="50"></div></div>
+<label><input type="checkbox" name="height_locked" value="true" style="width:auto"> I measured the camera height (skip zebra-based scale calibration)</label>
+<label><input type="checkbox" name="use_vlm" value="true" style="width:auto"> Run Claude vision checklist pass (footpaths, sign condition, encroachment, barriers; needs ANTHROPIC_API_KEY on server)</label>
+<button type="submit">Run audit</button></form></section>
+<section class="card"><h3 style="margin-top:0">Status</h3><div class="status" id="s">Idle.</div><div class="kpi" id="k"></div><div class="links" id="l"></div>
+<p style="font-size:12px;color:var(--muted)">Tip: dash-mount the phone at the windscreen centre (height ~1.3 m), record 1080p/30 fps with a GPS logger app running (GPX), drive at 20-40 km/h in both directions, day and night. The audit is a screening tool supporting a certified Road Safety Auditor (IRC:SP:88-2019).</p></section>
+</main>
+<script>
+const f=document.getElementById('f'),s=document.getElementById('s'),k=document.getElementById('k'),l=document.getElementById('l');
+f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f);if(!fd.get('posted_speed'))fd.delete('posted_speed');s.textContent='Uploading...';k.innerHTML='';l.innerHTML='';
+const r=await fetch('/api/audits',{method:'POST',body:fd});const j=await r.json();if(!r.ok){s.textContent='Error: '+JSON.stringify(j);return}
+s.textContent='Job '+j.job_id+' queued...';poll(j.job_id)};
+async function poll(id){const r=await fetch('/api/audits/'+id);const j=await r.json();
+if(j.status==='done'){const sm=j.summary;s.textContent='Done: '+j.report_id+'\n'+JSON.stringify(sm.n_by_severity)+'\nTop risks:\n- '+sm.top_risks.join('\n- ');
+k.innerHTML=`<div><b>${sm.overall_score}</b><span>Safety score /100</span></div><div><b>${'★'.repeat(sm.star_rating)}${'☆'.repeat(5-sm.star_rating)}</b><span>Indicative band</span></div><div><b>${sm.n_findings}</b><span>Findings</span></div><div><b>${Math.round(sm.length_m)} m</b><span>Length</span></div><div><b>${sm.coverage_pct}%</b><span>Checklist coverage</span></div><div><b>${sm.n_by_severity.critical||0}/${sm.n_by_severity.high||0}</b><span>Critical / High</span></div>`;
+for(const kd of ['html','pdf','xlsx','csv','geojson','kml','dxf','json']) if(j.outputs&&j.outputs[kd]) l.innerHTML+=`<a href="/api/audits/${id}/download/${kd}" target="_blank">${kd.toUpperCase()}</a>`;return}
+if(j.status==='failed'){s.textContent='Failed: '+j.error;return}
+s.textContent='Status: '+j.status+' ('+Math.round((Date.now()/1000)-(j.started||j.created))+' s) ...';setTimeout(()=>poll(id),3000)}
+</script></body></html>

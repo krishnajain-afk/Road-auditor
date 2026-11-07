@@ -1,0 +1,727 @@
+# CFI Road Auditor - IRC / MoRTH compliance rule database (v0.1)
+# Each rule: id, category, title, standard_ref, requirement, check (type + params), severity, likelihood,
+# users (affected road users), recommendation, agency, applies_to (road classes, default all), confidence of the
+# standard value (high/medium/low). Thresholds may be dicts keyed by road class group: urban | rural | expressway.
+#
+# check types
+#   asset_attr     : for each asset of `asset`, compare attributes[attr] with op/threshold (missing attr -> not assessed)
+#   asset_size     : compare asset.size_m[0|1] (width/length) with threshold
+#   asset_presence : require >= min_count assets of `asset` across the audit (else one finding at ch 0)
+#   asset_requires : for each asset of `asset`, require an asset of any `requires` within [-upstream_m, downstream_m]
+#   asset_forbidden_near : finding when `asset` has `near` asset within window
+#   segment_metric : for each segment compare metrics[metric] with op/threshold (missing -> not assessed)
+#   segment_flag   : for each segment where flags[flag] == true and condition on metrics -> finding
+#   density        : count of `asset` per km > threshold -> finding (whole audit)
+#   asset_conf     : every asset of a type is itself a deficiency (pothole, open manhole, encroachment ...)
+meta:
+  version: "0.1.0"
+  risk_matrix: "IRC:SP:88-2019 style 4x4 (severity x likelihood)"
+  class_groups:
+    urban: [urban_arterial, urban_sub_arterial, urban_collector, urban_local]
+    rural: [national_highway, state_highway, major_district_road, other_district_road, village_road]
+    expressway: [expressway]
+
+rules:
+# ============================================================ PAVEMENT CONDITION
+- id: PAV-001
+  category: pavement
+  title: Pothole on carriageway
+  standard_ref: "IRC:82-2015 Cl. 4 & Table 1 (maintenance of bituminous surfaces); MoRTH pothole-free mandate"
+  requirement: "Carriageway shall be free of potholes; potholes to be repaired within 24-48 h on NH/urban arterials (IRC:82 response norms)."
+  check: {type: asset_conf, asset: pothole, min_conf: 0.3}
+  severity_by_size: {width_m: [[0.0, 0.3, medium], [0.3, 0.6, high], [0.6, 99, critical]]}
+  severity: high
+  likelihood: probable
+  users: [motorcyclists, cyclists, car occupants]
+  recommendation: "Cut to regular shape, clean, tack coat and fill with hot/cold bituminous mix compacted flush; log in maintenance register; investigate drainage if recurrent."
+  agency: "Road owning agency / maintenance contractor"
+  confidence: high
+- id: PAV-002
+  category: pavement
+  title: Pothole density exceeds maintenance threshold
+  standard_ref: "IRC:82-2015 Table 1 (serviceability levels)"
+  requirement: "Good serviceability: no potholes; Fair: < 2 per km; Poor: >= 5 per km."
+  check: {type: density, asset: pothole, per_km_gt: 5, min_conf: 0.3}
+  severity: high
+  likelihood: frequent
+  users: [all]
+  recommendation: "Programme patch repair followed by profile correction/resurfacing of the section; review pavement drainage."
+  agency: "Road owning agency"
+  confidence: high
+- id: PAV-003
+  category: pavement
+  title: Alligator / map cracking indicating structural failure
+  standard_ref: "IRC:82-2015 Cl. 4.2; IRC:81 (structural evaluation)"
+  requirement: "Alligator cracking > 10% of area requires structural treatment."
+  check: {type: asset_conf, asset: crack_alligator, min_conf: 0.4}
+  severity: medium
+  likelihood: occasional
+  users: [motorcyclists]
+  recommendation: "Seal cracks; where extensive, mill and overlay / reconstruct after FWD/BBD evaluation."
+  agency: "Road owning agency"
+  confidence: medium
+- id: PAV-004
+  category: pavement
+  title: Longitudinal / transverse cracking
+  standard_ref: "IRC:82-2015 Cl. 4.2"
+  requirement: "Cracks > 3 mm to be sealed to prevent water ingress."
+  check: {type: asset_conf, asset: crack_longitudinal, min_conf: 0.45}
+  severity: low
+  likelihood: occasional
+  users: [motorcyclists]
+  recommendation: "Crack sealing with bitumen emulsion/sealant; monitor."
+  agency: "Road owning agency"
+  confidence: medium
+- id: PAV-005
+  category: pavement
+  title: Open / sunken manhole on carriageway
+  standard_ref: "IRC:SP:88-2019 checklist (surface hazards); IRC:86 Cl. on utilities"
+  requirement: "Utility covers shall be flush (+/- 6 mm) with the riding surface and never left open."
+  check: {type: asset_conf, asset: open_manhole, min_conf: 0.3}
+  severity: critical
+  likelihood: probable
+  users: [motorcyclists, cyclists, pedestrians]
+  recommendation: "Immediate barricading and cover replacement; raise/lower frame to grade."
+  agency: "Utility agency / ULB"
+  confidence: high
+- id: PAV-006
+  category: pavement
+  title: Water-logging on carriageway
+  standard_ref: "IRC:SP:42-2014 (road drainage); IRC:SP:50"
+  requirement: "Carriageway shall drain freely; standing water indicates inadequate camber/cross-fall or blocked drains."
+  check: {type: asset_conf, asset: waterlogging, min_conf: 0.4}
+  severity: medium
+  likelihood: occasional
+  users: [motorcyclists, pedestrians]
+  recommendation: "Clear drains/inlets, correct camber (2-2.5% bituminous), provide additional gullies."
+  agency: "ULB drainage wing"
+  confidence: medium
+- id: PAV-007
+  category: pavement
+  title: Debris / construction material on carriageway
+  standard_ref: "IRC:SP:55-2014 Cl. 4 (work zone housekeeping)"
+  requirement: "No loose material, debris or spillage on the trafficked surface."
+  check: {type: asset_conf, asset: debris, min_conf: 0.4}
+  severity: medium
+  likelihood: occasional
+  users: [motorcyclists]
+  recommendation: "Remove debris; enforce work-zone housekeeping; sweep regularly."
+  agency: "Road owning agency"
+  confidence: medium
+
+# ============================================================ CROSS-SECTION
+- id: XS-001
+  category: cross_section
+  title: Lane width below minimum
+  standard_ref: "IRC:86-2018 Table 4 (urban) / IRC:73-1980 Cl. 5 (rural): standard lane 3.5 m; absolute min 3.0 m on local streets"
+  requirement: "Lane width >= 3.5 m (3.25 m acceptable on urban collector/local; 3.0 m absolute minimum)."
+  check: {type: segment_metric, metric: lane_width_m, op: "<", threshold: {urban: 3.0, rural: 3.25, expressway: 3.5}, tolerance: 0.1}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Re-mark lanes to standard widths; remove encroachment; widen carriageway where right-of-way permits."
+  agency: "Road owning agency"
+  confidence: high
+- id: XS-002
+  category: cross_section
+  title: Carriageway narrower than two-lane standard
+  standard_ref: "IRC:73-1980 Cl. 5.2 (2-lane 7.0 m, intermediate 5.5 m, single 3.75 m); IRC:86-2018 Table 4"
+  requirement: "Two-lane carriageway 7.0 m; a width between 5.5 m and 7.0 m is sub-standard for two-way traffic."
+  check: {type: segment_metric, metric: carriageway_width_m, op: "<", threshold: {urban: 7.0, rural: 7.0, expressway: 14.0}, min_conf: 0.5, tolerance: 0.25}
+  severity: medium
+  likelihood: occasional
+  users: [all]
+  recommendation: "Widen to 7.0 m or designate single-lane with passing places; provide edge lines and hazard markers."
+  agency: "Road owning agency"
+  confidence: high
+- id: XS-003
+  category: cross_section
+  title: Sharp horizontal curve below minimum radius for design speed
+  standard_ref: "IRC:38-1988 Table 1 / IRC:73-1980 Table 11 / IRC:86-2018: R_min = V^2 / 127(e+f), e=0.07, f=0.15"
+  requirement: "Horizontal curve radius >= ruling minimum for the design speed (e.g. 60 km/h -> 130 m; 80 km/h -> 230 m; 50 km/h -> 90 m)."
+  check: {type: segment_metric, metric: curve_radius_m, op: "<", threshold: "min_radius_for_design_speed", min_conf: 0.3}
+  severity: high
+  likelihood: probable
+  users: [all]
+  recommendation: "Provide curve warning + chevron signs, advisory speed plate, super-elevation check, delineators; consider realignment."
+  agency: "Road owning agency"
+  confidence: high
+- id: XS-004
+  category: cross_section
+  title: Gradient steeper than ruling gradient
+  standard_ref: "IRC:73-1980 Table 10 / IRC:SP:23: ruling 3.3% plain, 5% rolling, 6% mountainous; limiting 5/6/7%"
+  requirement: "Longitudinal gradient <= ruling gradient (3.3% plain; 5% rolling; 6% mountainous; 7% steep)."
+  check: {type: segment_metric, metric: gradient_pct, op: ">", threshold: {plain: 5.0, rolling: 6.0, mountainous: 7.0, steep: 8.0}, min_conf: 0.3}
+  severity: medium
+  likelihood: occasional
+  users: [heavy vehicles, cyclists]
+  recommendation: "Steep gradient warning signs, climbing lane, surface friction improvement, escape/arrester provisions on long down grades."
+  agency: "Road owning agency"
+  confidence: medium
+- id: XS-005
+  category: cross_section
+  title: Sub-standard lane width on narrow segment with heavy two-wheeler exposure
+  standard_ref: "IRC:SP:88-2019 Checklist (cross-section vs traffic mix)"
+  requirement: "Where motorised two-wheelers dominate, lane width <= 3.0 m with mixed traffic increases side-swipe risk."
+  check: {type: segment_metric, metric: lane_width_m, op: "<", threshold: 3.0, requires_metric: {motorcycle_per_frame: 1.0}}
+  severity: medium
+  likelihood: probable
+  users: [motorcyclists]
+  recommendation: "Re-marking, enforcement against on-street parking, dedicated two-wheeler / NMT lanes where ROW allows."
+  agency: "Road owning agency / Traffic police"
+  confidence: medium
+
+# ============================================================ MARKINGS (IRC:35-2015)
+- id: MRK-001
+  category: markings
+  title: Zebra crossing stripe width non-compliant
+  standard_ref: "IRC:35-2015 Cl. 6.5.1 / Fig: zebra stripes 500 mm wide with 500 mm gaps (tolerance +/- 100 mm)"
+  requirement: "Zebra stripes 500 mm wide, gaps 500 mm; stripes parallel to traffic flow."
+  check: {type: asset_attr, asset: zebra_crossing, attr: stripe_width_m, op: outside, threshold: [0.35, 0.70]}
+  severity: low
+  likelihood: occasional
+  users: [pedestrians]
+  recommendation: "Re-paint zebra to 500 mm stripe / 500 mm gap with thermoplastic retro-reflective paint."
+  agency: "ULB / Road owning agency"
+  confidence: high
+- id: MRK-002
+  category: markings
+  title: Zebra crossing length (in direction of traffic) below minimum
+  standard_ref: "IRC:35-2015 Cl. 6.5; IRC:103-2012 Cl. 7.2: crossing width 2 m min (4 m where pedestrian volumes high); widths up to 6 m at busy locations"
+  requirement: "Zebra crossing shall be at least 2.0 m wide (measured along the direction of vehicular travel); 4.0 m on arterials."
+  check: {type: asset_attr, asset: zebra_crossing, attr: crossing_length_m, op: "<", threshold: {urban: 2.0, rural: 2.0, expressway: 2.0}}
+  severity: low
+  likelihood: occasional
+  users: [pedestrians]
+  recommendation: "Widen crossing marking to 4 m on arterial/sub-arterial roads, 2-3 m on collectors."
+  agency: "ULB"
+  confidence: high
+- id: MRK-003
+  category: markings
+  title: Zebra crossing without advance pedestrian-crossing warning sign
+  standard_ref: "IRC:67-2022 (Cautionary sign 'Pedestrian Crossing' ahead); IRC:103-2012 Cl. 7.2.4; IRC:35-2015"
+  requirement: "Uncontrolled pedestrian crossings shall be preceded by a 'Pedestrian Crossing' cautionary sign 40-50 m in advance (urban)."
+  check: {type: asset_requires, asset: zebra_crossing, requires: [sign_pedestrian_crossing, sign_cautionary, sign_unknown], upstream_m: 120, downstream_m: 5}
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Install retro-reflective 'Pedestrian Crossing' cautionary sign (900 mm triangle) 40-50 m ahead on both approaches; add 'Pedestrian Crossing Ahead' pavement marking."
+  agency: "ULB / Traffic police"
+  confidence: high
+- id: MRK-004
+  category: markings
+  title: Zebra crossing without stop line / give-way line
+  standard_ref: "IRC:35-2015 Cl. 6.4 (stop line 200-300 mm, 2-3 m before crossing)"
+  requirement: "A stop line (200 mm urban / 300 mm rural, 2 m-3 m ahead of the crossing) shall accompany a zebra crossing at a controlled location; a give-way line at uncontrolled ones."
+  check: {type: asset_requires, asset: zebra_crossing, requires: [stop_line, give_way_marking], upstream_m: 15, downstream_m: 3}
+  severity: medium
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Mark stop line 2-3 m before crossing; renew on each approach."
+  agency: "ULB / Traffic police"
+  confidence: high
+- id: MRK-005
+  category: markings
+  title: Lane line width non-standard
+  standard_ref: "IRC:35-2015 Cl. 4.2 / Table 1: lane lines 100 mm (urban) / 150 mm (rural highways); edge lines 150-200 mm"
+  requirement: "Longitudinal lane lines 100 mm wide on urban roads, 150 mm on highways; edge lines 150-200 mm."
+  check: {type: asset_attr, asset: lane_line, attr: line_width_m, op: outside, threshold: {urban: [0.08, 0.22], rural: [0.12, 0.25], expressway: [0.14, 0.25]}}
+  severity: info
+  likelihood: improbable
+  users: [all]
+  recommendation: "Re-mark to standard width with retro-reflective thermoplastic (IRC:35 material spec)."
+  agency: "Road owning agency"
+  confidence: high
+- id: MRK-006
+  category: markings
+  title: No visible lane / centre-line marking on segment
+  standard_ref: "IRC:35-2015 Cl. 4 (centre line mandatory on 2-lane and wider roads); IRC:SP:88 checklist 'delineation'"
+  requirement: "All roads >= 5.5 m wide shall have a centre line; multi-lane roads shall have lane lines; edge lines on rural highways."
+  check: {type: segment_metric, metric: n_lines, op: "<", threshold: 1, requires_metric: {carriageway_width_m: 5.5}}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Provide centre/lane/edge lines in thermoplastic with glass beads; re-stripe when retro-reflectivity < 100 mcd/m2/lx."
+  agency: "Road owning agency"
+  confidence: high
+- id: MRK-007
+  category: markings
+  title: Stop line thickness non-standard
+  standard_ref: "IRC:35-2015 Cl. 6.4: stop line 200 mm (urban) to 300 mm (rural / high speed)"
+  requirement: "Stop line 200-300 mm wide across the approach lanes."
+  check: {type: asset_attr, asset: stop_line, attr: thickness_m, op: outside, threshold: [0.15, 0.45]}
+  severity: info
+  likelihood: improbable
+  users: [all]
+  recommendation: "Re-mark to 200/300 mm."
+  agency: "ULB"
+  confidence: high
+
+# ============================================================ PEDESTRIAN FACILITIES (IRC:103-2012)
+- id: PED-001
+  category: pedestrian
+  title: No footpath on road with pedestrian activity
+  standard_ref: "IRC:103-2012 Cl. 5.1 / Table 1: footpath mandatory on urban roads; minimum clear width 1.8 m"
+  requirement: "Continuous footpath of >= 1.8 m clear width on both sides of urban roads (2.5 m commercial, 4.0 m high-intensity)."
+  check: {type: segment_flag, flag: footpath_assessed, equals: true, metric_lt: {footpath_present: 0.5}, requires_metric_any: {pedestrian_per_frame: 0.2}}
+  applies_to: [urban_arterial, urban_sub_arterial, urban_collector, urban_local, national_highway, state_highway]
+  severity: critical
+  likelihood: frequent
+  users: [pedestrians]
+  recommendation: "Construct raised footpath >= 1.8 m clear (kerb 150 mm) with tactile paving; where ROW is short, provide at-grade protected walkway with bollards."
+  agency: "ULB / Road owning agency"
+  confidence: high
+- id: PED-002
+  category: pedestrian
+  title: Footpath clear width below 1.8 m
+  standard_ref: "IRC:103-2012 Cl. 5.1 Table 1"
+  requirement: "Footpath clear (obstruction-free) width >= 1.8 m."
+  check: {type: segment_metric, metric: footpath_width_m, op: "<", threshold: 1.8}
+  severity: high
+  likelihood: probable
+  users: [pedestrians, persons with disabilities]
+  recommendation: "Relocate utilities/poles, remove encroachments, widen footpath."
+  agency: "ULB"
+  confidence: high
+- id: PED-003
+  category: pedestrian
+  title: Footpath obstructed / encroached
+  standard_ref: "IRC:103-2012 Cl. 5.3 (obstruction-free zone); IRC:SP:88 checklist 'encroachments'"
+  requirement: "Furniture/hawkers/parking shall not reduce the clear footpath width below 1.8 m."
+  check: {type: segment_metric, metric: footpath_obstructed, op: ">", threshold: 0.5}
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Enforce hawker zones per Street Vendors Act, relocate utilities, bollards against parking."
+  agency: "ULB / Traffic police"
+  confidence: medium
+- id: PED-004
+  category: pedestrian
+  title: Pedestrians walking on carriageway (exposure)
+  standard_ref: "IRC:SP:88-2019 checklist 'vulnerable road users'; IRC:103-2012"
+  requirement: "Pedestrian activity on the carriageway indicates missing/unusable footpath or crossing facilities."
+  check: {type: segment_metric, metric: pedestrian_per_frame, op: ">", threshold: 1.5, requires_flag_false: has_footpath}
+  severity: high
+  likelihood: frequent
+  users: [pedestrians]
+  recommendation: "Provide/clear footpaths; add crossings at desire lines; reduce speeds with calming; lighting."
+  agency: "ULB / Traffic police"
+  confidence: medium
+- id: PED-005
+  category: pedestrian
+  title: Pedestrian crossing spacing exceeds 250 m on urban arterial
+  standard_ref: "IRC:103-2012 Cl. 7.1 (crossing every 250 m or at desire lines / bus stops / schools)"
+  requirement: "Safe crossing opportunity at least every 250 m in built-up areas."
+  check: {type: spacing, asset: zebra_crossing, max_gap_m: 300, min_length_m: 400}
+  applies_to: [urban_arterial, urban_sub_arterial, urban_collector]
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Add zebra crossings / refuge islands / pelican signals at desire lines, bus stops and schools."
+  agency: "ULB"
+  confidence: high
+- id: PED-006
+  category: pedestrian
+  title: Zebra crossing on multi-lane carriageway without central refuge
+  standard_ref: "IRC:103-2012 Cl. 7.3 (refuge island min 1.2 m, preferably 2.0 m, where carriageway > 11 m or 4+ lanes)"
+  requirement: "Crossings over carriageways wider than 11 m (or 4+ lanes undivided) shall have a pedestrian refuge island >= 1.2 m (preferably 2 m) wide."
+  check: {type: asset_requires, asset: zebra_crossing, requires: [refuge_island, median], upstream_m: 10, downstream_m: 10, requires_metric: {carriageway_width_m: 11.0}}
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Provide kerbed refuge island with bollards and object markers; stage the crossing."
+  agency: "ULB"
+  confidence: high
+- id: PED-007
+  category: pedestrian
+  title: Signalised junction without pedestrian signal / phase
+  standard_ref: "IRC:93-1985 Cl. 5 (pedestrian signals); IRC:103-2012 Cl. 7.4; IRC:SP:88 checklist"
+  requirement: "Signalised intersections in urban areas shall provide pedestrian signal heads and an all-red/pedestrian phase."
+  check: {type: asset_requires, asset: traffic_signal, requires: [pedestrian_signal], upstream_m: 40, downstream_m: 40}
+  applies_to: [urban_arterial, urban_sub_arterial, urban_collector, urban_local]
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Install pedestrian signal heads with countdown and audible units; provide zebra on every arm."
+  agency: "Traffic police / ULB"
+  confidence: medium
+- id: PED-008
+  category: pedestrian
+  title: Signalised junction without zebra crossing
+  standard_ref: "IRC:35-2015 Cl. 6.5; IRC:103-2012 Cl. 7.2"
+  requirement: "Every arm of a signalised junction shall have a marked pedestrian crossing."
+  check: {type: asset_requires, asset: traffic_signal, requires: [zebra_crossing], upstream_m: 45, downstream_m: 45}
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Mark zebra crossings 2 m behind stop lines on all approaches."
+  agency: "Traffic police / ULB"
+  confidence: high
+- id: PED-009
+  category: pedestrian
+  title: Kerb height non-standard
+  standard_ref: "IRC:86-2018 Cl. 10 (kerb 150 mm, max 200 mm; mountable 100 mm); IRC:103-2012 Cl. 5.2"
+  requirement: "Footpath kerb 150 mm above carriageway (max 200 mm); kerb ramps at crossings."
+  check: {type: segment_metric, metric: kerb_height_m, op: outside, threshold: [0.10, 0.22]}
+  severity: low
+  likelihood: occasional
+  users: [pedestrians, persons with disabilities]
+  recommendation: "Rebuild kerb to 150 mm; provide kerb ramps (1:12) with tactile warning."
+  agency: "ULB"
+  confidence: high
+- id: PED-010
+  category: pedestrian
+  title: Pedestrian guardrail/fence absent at high pedestrian-vehicle conflict location
+  standard_ref: "IRC:103-2012 Cl. 8 (guardrails to channelise pedestrians to crossings near schools/markets)"
+  requirement: "Pedestrian guardrails to channelise crossing movements at high-volume, high-speed locations."
+  check: {type: segment_metric, metric: pedestrian_per_frame, op: ">", threshold: 3.0, requires_metric: {car_per_frame: 2.0}, requires_count_zero: guardrail}
+  severity: medium
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Provide guardrails/planters to channelise pedestrians to crossings; keep sight lines (max height 1.1 m)."
+  agency: "ULB"
+  confidence: medium
+
+# ============================================================ SIGNS (IRC:67-2022)
+- id: SGN-001
+  category: signs
+  title: Speed hump without advance 'Speed Breaker' warning sign
+  standard_ref: "IRC:99-2018 Cl. 6.4 & IRC:67-2022: cautionary sign 'Speed Breaker' 40 m (urban) / 100 m (rural) in advance; hump itself marked"
+  requirement: "Each speed hump shall be preceded by a cautionary 'Hump/Speed Breaker' sign at 40-50 m (urban) and a 'Speed Breaker Ahead' informatory plate."
+  check: {type: asset_requires, asset: speed_hump, requires: [sign_speed_breaker, sign_cautionary, sign_unknown], upstream_m: 120, downstream_m: 5}
+  severity: high
+  likelihood: probable
+  users: [motorcyclists, car occupants]
+  recommendation: "Install 'Speed Breaker' cautionary sign (triangle 900 mm) 40 m ahead with distance plate; paint hump with alternate black-white/yellow bands; add cat's eyes."
+  agency: "Road owning agency / Traffic police"
+  confidence: high
+- id: SGN-002
+  category: signs
+  title: Speed hump without reflective hump markings
+  standard_ref: "IRC:99-2018 Cl. 6.4; IRC:35-2015 Cl. 7 (hump marking - alternate black & white / yellow bands with retro-reflective paint)"
+  requirement: "Humps shall be painted with alternate black and white (or yellow) bands visible at night."
+  check: {type: asset_attr, asset: speed_hump, attr: marked, op: "==", threshold: false}
+  severity: critical
+  likelihood: probable
+  users: [motorcyclists]
+  recommendation: "Paint hump with alternating 300 mm black/white thermoplastic chevrons and install road studs."
+  agency: "Road owning agency"
+  confidence: high
+- id: SGN-003
+  category: signs
+  title: Sign mounted too low / too high
+  standard_ref: "IRC:67-2022 Cl. 4: bottom edge 2.0-2.5 m above kerb in urban areas (pedestrian clearance); 1.5-2.0 m rural (edge of carriageway)"
+  requirement: "Urban: sign bottom 2.0-2.5 m above footpath; rural: 1.5-2.0 m above road edge."
+  check: {type: asset_attr, asset: sign_unknown, attr: mounting_height_m, op: outside, threshold: {urban: [1.9, 2.6], rural: [1.4, 2.2], expressway: [1.8, 2.6]}}
+  severity: low
+  likelihood: occasional
+  users: [pedestrians, all]
+  recommendation: "Re-mount sign to standard height."
+  agency: "Road owning agency"
+  confidence: high
+- id: SGN-004
+  category: signs
+  title: Signalised intersection without advance 'Traffic Signal Ahead' sign (high-speed approach)
+  standard_ref: "IRC:67-2022 (cautionary 'Traffic Signal Ahead'); IRC:93-1985 Cl. 6"
+  requirement: "Where approach speed >= 50 km/h or signal visibility < SSD, provide 'Traffic Signal Ahead' cautionary sign."
+  check: {type: asset_requires, asset: traffic_signal, requires: [sign_cautionary, sign_unknown], upstream_m: 150, downstream_m: 0, requires_speed_ge: 50}
+  severity: medium
+  likelihood: occasional
+  users: [all]
+  recommendation: "Install 'Traffic Signal Ahead' sign 80-120 m in advance, with overhead signal repeaters."
+  agency: "Traffic police / Road owning agency"
+  confidence: medium
+- id: SGN-005
+  category: signs
+  title: No speed limit sign on surveyed length
+  standard_ref: "IRC:67-2022 (Mandatory sign 'Speed Limit'); MoRTH notification S.O.1522(E) 6-Apr-2018 (speed limits); IRC:SP:88 checklist"
+  requirement: "Speed limit signs repeated after every major junction and at least every 1-2 km in urban areas."
+  check: {type: asset_presence, asset: sign_speed_limit, min_count: 1, min_length_m: 1000, alt_assets: [sign_mandatory]}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Install speed limit signs per MoRTH 2018 notification (e.g. 50/60 km/h urban arterial) at section start and after junctions."
+  agency: "Traffic police / Road owning agency"
+  confidence: medium
+- id: SGN-006
+  category: signs
+  title: Sharp curve without curve warning / chevron signs
+  standard_ref: "IRC:67-2022 (Cautionary 'Left/Right Hand Curve', 'Hair-pin Bend'; chevron alignment markers); IRC:SP:88 checklist"
+  requirement: "Curves below minimum radius for the posted/design speed shall have advance curve warning signs and chevrons on the outside of the curve."
+  check: {type: segment_requires_asset, metric: curve_radius_m, op: "<", threshold: "min_radius_for_design_speed", requires: [sign_cautionary, chevron, sign_unknown], window_m: 150}
+  severity: high
+  likelihood: probable
+  users: [all]
+  recommendation: "Curve warning sign 60-120 m ahead, advisory speed plate, chevron alignment markers at the curve, delineators."
+  agency: "Road owning agency"
+  confidence: high
+- id: SGN-007
+  category: signs
+  title: Sign plate damaged / faded / obscured
+  standard_ref: "IRC:67-2022 Cl. on maintenance; retro-reflective sheeting Class per IRC:67 Table"
+  requirement: "Signs shall be legible, un-obscured by vegetation/hoardings and retro-reflective at night."
+  check: {type: asset_attr, asset: sign_unknown, attr: condition, op: in, threshold: [damaged, faded, obscured]}
+  severity: medium
+  likelihood: occasional
+  users: [all]
+  recommendation: "Replace with Type XI/IX retro-reflective sheeting; clear vegetation; remove hoardings."
+  agency: "Road owning agency"
+  confidence: high
+
+# ============================================================ TRAFFIC CALMING (IRC:99-2018)
+- id: TC-001
+  category: traffic_calming
+  title: Speed hump on arterial / National Highway (not permitted)
+  standard_ref: "IRC:99-2018 Cl. 6.1: humps not permitted on arterials, NH/SH main carriageway; MoRTH circular RW/NH-33044/4/2014 (removal of speed breakers on NH)"
+  requirement: "Speed humps are permitted only on local/collector streets (design speed <= 30-40 km/h); not on arterials or highways."
+  check: {type: asset_conf, asset: speed_hump, min_conf: 0.4}
+  applies_to: [expressway, national_highway, state_highway, urban_arterial]
+  severity: high
+  likelihood: probable
+  users: [motorcyclists, all]
+  recommendation: "Remove hump; replace with transverse bar markings, rumble strips, speed tables at designed crossings, or enforcement."
+  agency: "NHAI / PWD / ULB"
+  confidence: high
+- id: TC-002
+  category: traffic_calming
+  title: Speed hump profile non-standard
+  standard_ref: "IRC:99-2018 Cl. 6.3: circular hump 3.7 m chord, 0.10 m height (25 km/h); speed table 6-9 m plateau, ramps 1:15-1:25"
+  requirement: "Hump chord 3.7 m, height 100 mm (+/- 10 mm); no abrupt, un-engineered bumps."
+  check: {type: asset_attr, asset: speed_hump, attr: band_length_m, op: outside, threshold: [2.5, 9.5]}
+  severity: medium
+  likelihood: probable
+  users: [motorcyclists]
+  recommendation: "Reconstruct to IRC:99 profile; remove ad-hoc bumps."
+  agency: "Road owning agency"
+  confidence: medium
+- id: TC-003
+  category: traffic_calming
+  title: School zone without traffic calming / school signs
+  standard_ref: "IRC:99-2018 Cl. 7 (school zones); IRC:67-2022 ('School Ahead' sign); MoRTH school zone guidelines"
+  requirement: "School zones: 'School Ahead' sign, 25-30 km/h limit, raised crossings/speed tables, guardrails."
+  check: {type: asset_requires, asset: school_zone, requires: [sign_school, speed_table, speed_hump, zebra_crossing], upstream_m: 150, downstream_m: 150}
+  severity: critical
+  likelihood: probable
+  users: [children, pedestrians]
+  recommendation: "Install School Zone signage, 30 km/h limit, raised table crossing, guardrails and lighting; deploy wardens."
+  agency: "ULB / Traffic police / School"
+  confidence: high
+
+# ============================================================ SIGNALS & INTERSECTIONS
+- id: INT-001
+  category: intersection
+  title: Signalised intersection without stop line
+  standard_ref: "IRC:35-2015 Cl. 6.4; IRC:93-1985"
+  requirement: "Stop line (200-300 mm) on every signalised approach, 1-2 m behind the pedestrian crossing."
+  check: {type: asset_requires, asset: traffic_signal, requires: [stop_line], upstream_m: 45, downstream_m: 30}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Mark stop lines; synchronise with signal post location."
+  agency: "Traffic police / ULB"
+  confidence: high
+- id: INT-002
+  category: intersection
+  title: Signal head not functioning / blanked
+  standard_ref: "IRC:93-1985 Cl. 4 & 9 (maintenance); IRC:SP:88 checklist"
+  requirement: "All signal aspects shall be operational; a dark signal at a junction is a critical hazard."
+  check: {type: asset_attr, asset: traffic_signal, attr: working, op: "==", threshold: false}
+  severity: critical
+  likelihood: probable
+  users: [all]
+  recommendation: "Restore power/controller; provide blinker mode fall-back and police control until repaired."
+  agency: "Traffic police / ULB electrical"
+  confidence: high
+- id: INT-003
+  category: intersection
+  title: Intersection without channelisation / markings
+  standard_ref: "IRC:SP:41-1994 Cl. 6 (channelising islands, lane arrows); IRC:35-2015 Cl. 6"
+  requirement: "Major intersections shall have lane arrows, stop/give-way lines, channelising islands and yellow box where needed."
+  check: {type: segment_flag, flag: is_intersection, equals: true, count_zero: [stop_line, arrow_marking, give_way_marking]}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Prepare junction improvement plan per IRC:SP:41: channelisers, lane arrows, stop lines, pedestrian refuges."
+  agency: "Road owning agency / Traffic police"
+  confidence: medium
+- id: INT-004
+  category: intersection
+  title: Sharp heading change (possible junction/curve) without any signage detected
+  standard_ref: "IRC:67-2022; IRC:SP:41-1994; IRC:SP:88 checklist 'intersection conspicuity'"
+  requirement: "Junctions and sharp bends shall be conspicuous with advance warning signs."
+  check: {type: segment_flag, flag: sharp_heading_change, equals: true, count_zero: [sign_cautionary, sign_mandatory, sign_informatory, sign_unknown, traffic_signal, chevron]}
+  severity: medium
+  likelihood: occasional
+  users: [all]
+  recommendation: "Verify on site; install junction/curve warning signs, chevrons, lighting."
+  agency: "Road owning agency"
+  confidence: medium
+
+# ============================================================ LIGHTING
+- id: LGT-001
+  category: lighting
+  title: Inadequate street lighting (night footage)
+  standard_ref: "IS 1944 (Parts I & II) / IRC:SP:88 checklist: urban arterial avg 30 lux, collector 15 lux, local 8 lux; uniformity (min/avg) >= 0.4"
+  requirement: "Night-time road surface luminance adequate and uniform; no dark patches at crossings/junctions."
+  check: {type: segment_flag, flag: is_night, equals: true, metric_lt: {road_luma: 45}}
+  severity: high
+  likelihood: probable
+  users: [pedestrians, motorcyclists]
+  recommendation: "Repair/replace luminaires (LED), reduce pole spacing to 25-30 m on arterials, prioritise crossings and junctions."
+  agency: "ULB electrical / DISCOM"
+  confidence: medium
+- id: LGT-002
+  category: lighting
+  title: Poor lighting uniformity (dark patches)
+  standard_ref: "IS 1944 uniformity ratio Emin/Eavg >= 0.4 (arterial)"
+  requirement: "Minimum-to-average illuminance >= 0.4."
+  check: {type: segment_flag, flag: is_night, equals: true, metric_lt: {luma_uniformity: 0.3}}
+  severity: medium
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Re-space/raise luminaires, trim trees, replace failed lamps."
+  agency: "ULB electrical"
+  confidence: medium
+- id: LGT-003
+  category: lighting
+  title: Pedestrian crossing without lighting at night
+  standard_ref: "IRC:103-2012 Cl. 9; IS 1944"
+  requirement: "Crossings shall be illuminated to 1.5x the road average."
+  check: {type: asset_requires_metric, asset: zebra_crossing, metric: road_luma, op: ">=", threshold: 60, only_when_flag: is_night}
+  severity: high
+  likelihood: probable
+  users: [pedestrians]
+  recommendation: "Dedicated crossing luminaires or illuminated bollards/signs."
+  agency: "ULB electrical"
+  confidence: medium
+
+# ============================================================ ROADSIDE HAZARDS / BARRIERS
+- id: RSH-001
+  category: roadside
+  title: Rigid obstacle (pole/tree) within clear zone of a high-speed road
+  standard_ref: "IRC:119-2015 Cl. 3 (clear zone 3-9 m by speed & slope); IRC:SP:84 Cl. 9"
+  requirement: "No unprotected rigid objects within the clear zone (>= 3 m from carriageway edge at 60 km/h; wider at higher speeds)."
+  check: {type: asset_attr, asset: pole, attr: lateral_offset_m, op: "<", threshold: {urban: 0.6, rural: 3.0, expressway: 4.5}}
+  severity: high
+  likelihood: occasional
+  users: [car occupants, motorcyclists]
+  recommendation: "Relocate, shield with W-beam barrier (IRC:119) or use breakaway supports."
+  agency: "Road owning agency / Utility"
+  confidence: medium
+- id: RSH-002
+  category: roadside
+  title: Crash barrier damaged / missing terminal
+  standard_ref: "IRC:119-2015 Cl. 5 & 7 (W-beam 710 mm height; end terminals)"
+  requirement: "Barriers continuous, at correct height, with crash-worthy terminals; no blunt ends."
+  check: {type: asset_attr, asset: crash_barrier, attr: condition, op: in, threshold: [damaged, blunt_end, missing_section]}
+  severity: high
+  likelihood: occasional
+  users: [car occupants]
+  recommendation: "Repair/replace barrier panels, provide energy-absorbing terminals."
+  agency: "Road owning agency"
+  confidence: high
+- id: RSH-003
+  category: roadside
+  title: Median opening / unofficial U-turn gap
+  standard_ref: "IRC:SP:84 Cl. 7 (median openings at >= 2 km spacing with protected U-turn); IRC:86"
+  requirement: "Median openings only at designed locations with deceleration lanes, signs and markings."
+  check: {type: asset_conf, asset: median_opening, min_conf: 0.5}
+  applies_to: [expressway, national_highway, state_highway, urban_arterial]
+  severity: high
+  likelihood: probable
+  users: [all]
+  recommendation: "Close unauthorised gaps; design U-turn with storage, signage, lighting."
+  agency: "NHAI / PWD / ULB"
+  confidence: medium
+- id: RSH-004
+  category: roadside
+  title: Stray animals on carriageway
+  standard_ref: "IRC:SP:88-2019 checklist (animals); MoRTH advisory on stray cattle"
+  requirement: "Animal exposure requires fencing / warning signs / cattle management."
+  check: {type: segment_metric, metric: animal_per_frame, op: ">", threshold: 0.3}
+  severity: high
+  likelihood: probable
+  users: [motorcyclists, car occupants]
+  recommendation: "Cattle warning signs, coordination with ULB cattle pound, fencing on access-controlled roads."
+  agency: "ULB / NHAI"
+  confidence: medium
+
+# ============================================================ PARKING / ENCROACHMENT / BUS
+- id: PRK-001
+  category: parking
+  title: On-street parking reducing effective width / sight distance
+  standard_ref: "IRC:SP:12-2015 (parking); IRC:SP:41 (no parking within 15 m of junctions); IRC:86"
+  requirement: "No parking within 15 m of junctions/crossings; parking lanes 2.5 m wide only where provided."
+  check: {type: segment_metric, metric: parked_vehicle_per_frame, op: ">", threshold: 1.0}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Enforce no-parking, mark parking bays away from junctions, bollards."
+  agency: "Traffic police / ULB"
+  confidence: medium
+- id: PRK-002
+  category: encroachment
+  title: Hawker / encroachment on carriageway or footpath
+  standard_ref: "IRC:103-2012 Cl. 5.3; Street Vendors Act 2014 (vending zones); IRC:SP:88 checklist"
+  requirement: "No encroachment on carriageway; vending only in designated zones off the footpath clear width."
+  check: {type: asset_conf, asset: hawker_encroachment, min_conf: 0.4}
+  severity: medium
+  likelihood: probable
+  users: [pedestrians, all]
+  recommendation: "Designate vending zones; remove encroachment; bollards."
+  agency: "ULB / Traffic police"
+  confidence: medium
+- id: BUS-001
+  category: public_transport
+  title: Bus stop without bus bay / marking near junction
+  standard_ref: "IRC:80-1981 (bus bays: 3 m wide, 75 m long with tapers; >= 75 m from junction); IRC:SP:88 checklist"
+  requirement: "Bus stops on arterials in bus bays or marked kerbside boxes, away from junctions and crossings."
+  check: {type: asset_requires, asset: bus_stop, requires: [bus_bay], upstream_m: 40, downstream_m: 40}
+  applies_to: [urban_arterial, urban_sub_arterial, national_highway, state_highway]
+  severity: medium
+  likelihood: occasional
+  users: [bus passengers, pedestrians]
+  recommendation: "Provide bus bay / marked bus box, shelter set back, zebra behind the stop."
+  agency: "ULB / Transport undertaking"
+  confidence: medium
+
+# ============================================================ WORK ZONES (IRC:SP:55-2014)
+- id: WZ-001
+  category: work_zone
+  title: Work zone without advance warning / channelisation
+  standard_ref: "IRC:SP:55-2014 Cl. 5-7: advance warning area, taper (L = W*S for S>=60 km/h; W*S^2/155 for lower), cones at <= 10 m, night lighting"
+  requirement: "Work zones shall have advance warning signs, tapers, cones/barricades, flagmen and night illumination."
+  check: {type: asset_requires, asset: work_zone, requires: [sign_cautionary, sign_unknown], upstream_m: 200, downstream_m: 0}
+  severity: critical
+  likelihood: probable
+  users: [all, workers]
+  recommendation: "Implement traffic management plan per IRC:SP:55 with retro-reflective signage and delineation."
+  agency: "Contractor / Road owning agency"
+  confidence: high
+
+# ============================================================ SPEED / OPERATION
+- id: SPD-001
+  category: speed
+  title: Survey vehicle speed exceeds posted / statutory speed limit
+  standard_ref: "MoRTH S.O.1522(E) 2018: 70 km/h cars within municipal limits (lower where posted); 100 km/h 4-lane NH; 120 km/h expressways"
+  requirement: "85th percentile operating speed should not exceed the posted limit; large excess indicates design inviting speed."
+  check: {type: segment_metric, metric: speed_kmph_p85, op: ">", threshold: "posted_or_statutory_plus_10"}
+  severity: medium
+  likelihood: probable
+  users: [all]
+  recommendation: "Speed management: calming, enforcement cameras, narrowing visual width, signage."
+  agency: "Traffic police"
+  confidence: medium
+- id: NMT-001
+  category: cyclists
+  title: Cyclists sharing high-speed carriageway without NMT lane
+  standard_ref: "IRC:11-2015 (cycle tracks: 2.0 m one-way min, 3.0 m two-way); IRC:103"
+  requirement: "Where cycle volumes are significant on arterials, segregated cycle track >= 2.0 m."
+  check: {type: segment_metric, metric: cyclist_per_frame, op: ">", threshold: 0.5, requires_count_zero: cycle_track}
+  applies_to: [urban_arterial, urban_sub_arterial, national_highway, state_highway]
+  severity: medium
+  likelihood: probable
+  users: [cyclists]
+  recommendation: "Provide segregated NMT lane or shared-use path; lower speed limits."
+  agency: "ULB"
+  confidence: medium

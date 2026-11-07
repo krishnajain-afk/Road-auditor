@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ r.title }}</title>
+<style>
+:root{--ink:#1a1a1a;--muted:#5b6470;--line:#d9dee5;--crit:#b3261e;--high:#d9480f;--med:#b58100;--low:#2f7d32;--info:#607d8b;--bg:#fff}
+body{font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:32px;line-height:1.45;font-size:14px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:34px 0 10px;border-bottom:2px solid var(--line);padding-bottom:6px}h3{font-size:15px;margin:18px 0 6px}
+.meta{color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card b{display:block;font-size:22px}.card span{color:var(--muted);font-size:12px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;text-align:left}th{background:#f3f5f8}
+.sev{display:inline-block;padding:2px 8px;border-radius:12px;color:#fff;font-size:11px;font-weight:600;text-transform:uppercase}
+.sev.critical{background:var(--crit)}.sev.high{background:var(--high)}.sev.medium{background:var(--med)}.sev.low{background:var(--low)}.sev.info{background:var(--info)}
+.st.compliant{color:var(--low);font-weight:600}.st.non_compliant{color:var(--crit);font-weight:600}.st.not_assessed{color:var(--muted)}.st.not_applicable{color:#aaa}
+.finding{border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0;page-break-inside:avoid}.finding img{max-width:100%;border-radius:6px;margin-top:8px}
+.stars{color:#e0a800;font-size:20px;letter-spacing:2px}.small{font-size:12px;color:var(--muted)}
+.warn{background:#fff8e1;border:1px solid #ffe08a;border-radius:8px;padding:10px 12px}
+@media print{body{padding:12mm}.finding{break-inside:avoid}}
+</style></head><body>
+<h1>{{ r.title }}</h1>
+<div class="meta">Report {{ r.report_id }} &middot; generated {{ r.generated_at }} &middot; CFI Road Auditor v{{ r.tool_version }} &middot; Stage-5 (existing road) Road Safety Audit per IRC:SP:88-2019</div>
+
+<h2>1. Executive summary</h2>
+<div class="grid">
+ <div class="card"><b>{{ s.overall_score }}</b><span>Safety score (0-100)</span></div>
+ <div class="card"><b class="stars">{{ '★' * s.star_rating }}{{ '☆' * (5 - s.star_rating) }}</b><span>Indicative star band (not an official iRAP rating)</span></div>
+ <div class="card"><b>{{ s.n_findings }}</b><span>Findings</span></div>
+ <div class="card"><b>{{ s.n_by_severity.get('critical',0) }} / {{ s.n_by_severity.get('high',0) }}</b><span>Critical / High</span></div>
+ <div class="card"><b>{{ '%.0f'|format(s.length_m) }} m</b><span>Surveyed length</span></div>
+ <div class="card"><b>{{ s.coverage_pct }}%</b><span>Checklist coverage ({{ s.assessed_rules }} assessed, {{ s.not_assessed_rules }} not assessable from media)</span></div>
+</div>
+<p><b>Road class:</b> {{ rm.road_class.value.replace('_',' ') }} &middot; <b>Design speed:</b> {{ rm.design_speed_kmph }} km/h
+{% if rm.posted_speed_kmph %}&middot; <b>Posted:</b> {{ rm.posted_speed_kmph }} km/h{% endif %} &middot; <b>Terrain:</b> {{ rm.terrain.value }}
+{% if rm.context.get('location') %}&middot; <b>Location:</b> {{ rm.context.location }}{% endif %}</p>
+<h3>Top risks</h3><ol>{% for t in s.top_risks %}<li>{{ t }}</li>{% endfor %}</ol>
+<h3>Star band by road user (indicative)</h3>
+<table><tr>{% for k,v in s.star_rating_by_user.items() %}<th>{{ k.replace('_',' ') }}</th>{% endfor %}</tr>
+<tr>{% for k,v in s.star_rating_by_user.items() %}<td class="stars">{{ '★' * v }}{{ '☆' * (5 - v) }}</td>{% endfor %}</tr></table>
+
+<h2>2. Scope, methodology & limitations</h2>
+<table>
+<tr><th>Media</th><td>{{ rm.media.path.split('/')[-1] if rm.media else '-' }} ({{ rm.media.kind if rm.media else '' }}, {{ rm.media.width if rm.media else '' }}x{{ rm.media.height if rm.media else '' }}{% if rm.media and rm.media.kind=='video' %}, {{ '%.0f'|format(rm.media.duration_s) }} s, {{ '%.1f'|format(rm.media.fps) }} fps{% endif %}){% if rm.media and rm.media.device_model %} &middot; device {{ rm.media.device_make or '' }} {{ rm.media.device_model }}{% endif %}</td></tr>
+<tr><th>Frames analysed</th><td>{{ rm.frames|length }}</td></tr>
+<tr><th>Positioning</th><td>{{ m.positioning }}</td></tr>
+<tr><th>Camera model</th><td>{{ m.camera }}</td></tr>
+<tr><th>Perception backends</th><td>{{ m.detectors|join(', ') }}</td></tr>
+<tr><th>Standards applied</th><td>{{ m.standards|join('; ') }}</td></tr>
+<tr><th>Risk rating</th><td>IRC:SP:88-2019 likelihood x consequence matrix (Austroads 4x4): Intolerable=16, High=10, Medium=5, Low=2. Priority: Essential / Highly Desirable / Desirable / Optional.</td></tr>
+</table>
+<div class="warn" style="margin-top:10px"><b>Limitations.</b><ul style="margin:6px 0 0 18px">{% for l in r.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>
+
+<h2>3. Findings register ({{ f|length }})</h2>
+<table><thead><tr><th>#</th><th>ID</th><th>Chainage</th><th>Category</th><th>Finding</th><th>Standard</th><th>Severity</th><th>Risk</th><th>Priority</th><th>Conf.</th></tr></thead><tbody>
+{% for x in f %}<tr><td>{{ loop.index }}</td><td>{{ x.finding_id }}</td><td>{{ '%.0f'|format(x.chainage_m) }}{% if x.chainage_end_m %}-{{ '%.0f'|format(x.chainage_end_m) }}{% endif %} m{% if x.side %} ({{ x.side }}){% endif %}</td><td>{{ x.category.replace('_',' ') }}</td><td><b>{{ x.title }}</b><br><span class="small">{{ x.observed }}</span></td><td class="small">{{ x.standard_ref }}</td><td><span class="sev {{ x.severity.value }}">{{ x.severity.value }}</span></td><td>{{ x.risk_score }}</td><td class="small">{{ plabel[x.priority] }}</td><td>{{ '%.0f'|format(x.confidence*100) }}%</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>4. Finding sheets</h2>
+{% for x in f %}<div class="finding">
+<div><span class="sev {{ x.severity.value }}">{{ x.severity.value }}</span> &nbsp; <b>{{ x.finding_id }} &mdash; {{ x.title }}</b> &nbsp; <span class="small">Ch. {{ '%.0f'|format(x.chainage_m) }} m{% if x.geo %} &middot; {{ '%.6f'|format(x.geo.lat) }}, {{ '%.6f'|format(x.geo.lon) }}{% endif %}</span></div>
+<table style="margin-top:8px"><tr><th style="width:140px">Standard</th><td>{{ x.standard_ref }}</td></tr>
+<tr><th>Requirement</th><td>{{ x.requirement }}</td></tr><tr><th>Observed</th><td>{{ x.observed }}</td></tr>
+<tr><th>Risk</th><td>{{ x.likelihood.value }} x {{ x.severity.value }} &rarr; score {{ x.risk_score }} &rarr; {{ plabel[x.priority] }}</td></tr>
+<tr><th>Road users</th><td>{{ x.road_users_affected|join(', ') }}</td></tr>
+<tr><th>Recommendation</th><td>{{ x.recommendation }}</td></tr><tr><th>Agency</th><td>{{ x.responsible_agency }}</td></tr>
+<tr><th>Confidence / tags</th><td>{{ '%.0f'|format(x.confidence*100) }}% &middot; {{ x.tags|join(', ') }}</td></tr></table>
+{% if x.evidence and x.evidence[0].crop_path %}<img src="{{ rel(x.evidence[0].crop_path) }}" alt="evidence">{% endif %}
+</div>{% endfor %}
+
+<h2>5. Compliance matrix (IRC / MoRTH checklist)</h2>
+<table><thead><tr><th>Rule</th><th>Category</th><th>Check</th><th>Standard</th><th>Status</th><th>Detail</th></tr></thead><tbody>
+{% for c in r.compliance %}<tr><td>{{ c.rule_id }}</td><td>{{ c.category.replace('_',' ') }}</td><td>{{ c.title }}</td><td class="small">{{ c.standard_ref }}</td><td class="st {{ c.status }}">{{ c.status.replace('_',' ') }}</td><td class="small">{{ c.detail }}</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>6. Asset inventory ({{ rm.assets|length }})</h2>
+<table><thead><tr><th>ID</th><th>Type</th><th>Chainage</th><th>Side</th><th>Conf.</th><th>Obs.</th><th>Size (m)</th><th>Attributes</th></tr></thead><tbody>
+{% for a in rm.assets %}<tr><td>{{ a.asset_id }}</td><td>{{ a.asset.value.replace('_',' ') }}</td><td>{{ '%.0f'|format(a.chainage_m) }}</td><td>{{ a.side }}</td><td>{{ '%.2f'|format(a.confidence) }}</td><td>{{ a.n_observations }}</td><td>{% if a.size_m %}{{ '%.2f'|format(a.size_m[0]) }} x {{ '%.2f'|format(a.size_m[1]) }}{% endif %}</td><td class="small">{{ a.attributes|tojson if a.attributes else '' }}</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>7. Segment summary ({{ rm.segments|length }} x {{ seglen }} m)</h2>
+<table><thead><tr><th>Seg</th><th>Chainage</th><th>Lane width (m)</th><th>Carriageway (m)</th><th>Curve R (m)</th><th>Grade %</th><th>Ped/frame</th><th>Night</th><th>Assets</th></tr></thead><tbody>
+{% for sg in rm.segments %}<tr><td>{{ sg.segment_id }}</td><td>{{ '%.0f'|format(sg.start_m) }}-{{ '%.0f'|format(sg.end_m) }}</td><td>{{ '%.2f'|format(sg.metrics.lane_width_m) if sg.metrics.lane_width_m is defined else '-' }}</td><td>{{ '%.1f'|format(sg.metrics.carriageway_width_m) if sg.metrics.carriageway_width_m is defined else '-' }}</td><td>{{ '%.0f'|format(sg.metrics.curve_radius_m) if sg.metrics.curve_radius_m is defined else '-' }}</td><td>{{ '%.1f'|format(sg.metrics.gradient_pct) if sg.metrics.gradient_pct is defined else '-' }}</td><td>{{ '%.1f'|format(sg.metrics.pedestrian_per_frame) if sg.metrics.pedestrian_per_frame is defined else '-' }}</td><td>{{ 'yes' if sg.flags.is_night else '' }}</td><td class="small">{% for k,v in sg.counts.items() if not k.endswith('_max') %}{{ k }}:{{ v }} {% endfor %}</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>8. Action plan</h2>
+<table><thead><tr><th>Priority</th><th>Count</th><th>Items</th></tr></thead><tbody>
+{% for p, items in plan %}<tr><td>{{ plabel[p] }}</td><td>{{ items|length }}</td><td class="small">{{ items|join('; ') }}</td></tr>{% endfor %}
+</tbody></table>
+<p class="small">Disclaimer: this automated audit supports, and does not replace, a certified Road Safety Auditor (IRC:SP:88-2019 Cl. 3). Items tagged <i>needs_field_verification</i> may be artefacts of camera field-of-view or GPS noise and must be confirmed on site before being issued as formal findings. Measurements are derived from monocular video with a flat-road assumption; typical lateral accuracy +/- 0.15 m within 20 m of the camera.</p>
+</body></html>

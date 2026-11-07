@@ -1,0 +1,122 @@
+{
+ "lane_width_m": 3.5,
+ "n_lanes": 2,
+ "line_width_m": 0.1,
+ "assets": [
+  {
+   "type": "lane_line",
+   "lateral_m": 0.0,
+   "width_m": 0.1
+  },
+  {
+   "type": "zebra_crossing",
+   "forward_m": 12,
+   "length_m": 3.0,
+   "stripe_width_m": 0.5,
+   "n_stripes": 6
+  },
+  {
+   "type": "stop_line",
+   "forward_m": 9.5,
+   "thickness_m": 0.3
+  },
+  {
+   "type": "pothole",
+   "lateral_m": 0.8,
+   "forward_m": 9,
+   "width_m": 0.6,
+   "length_m": 0.5
+  },
+  {
+   "type": "sign_cautionary",
+   "lateral_m": 4.5,
+   "forward_m": 18
+  },
+  {
+   "type": "sign_stop",
+   "lateral_m": -4.4,
+   "forward_m": 25
+  },
+  {
+   "type": "traffic_signal",
+   "lateral_m": 4.2,
+   "forward_m": 28
+  },
+  {
+   "type": "pole",
+   "lateral_m": -5,
+   "forward_m": 20
+  }
+ ],
+ "camera": {
+  "width_px": 1280,
+  "height_px": 720,
+  "fx": 914.0147243149534,
+  "fy": 914.0147243149534,
+  "cx": 640.0,
+  "cy": 360.0,
+  "height_m": 1.3,
+  "pitch_deg": 3.0,
+  "yaw_deg": 0.0,
+  "roll_deg": 0.0,
+  "hfov_deg": 70.0,
+  "source": "synthetic",
+  "confidence": 1.0
+ },
+ "spec": {
+  "width_px": 1280,
+  "height_px": 720,
+  "hfov_deg": 70.0,
+  "cam_height_m": 1.3,
+  "pitch_deg": 3.0,
+  "lane_width_m": 3.5,
+  "n_lanes": 2,
+  "line_width_m": 0.1,
+  "dashed": true,
+  "yellow_centre": false,
+  "zebra_at_m": 12,
+  "zebra_length_m": 3.0,
+  "zebra_stripe_m": 0.5,
+  "zebra_gap_m": 0.5,
+  "stop_line_at_m": 9.5,
+  "stop_line_thick_m": 0.3,
+  "hump_at_m": null,
+  "hump_len_m": 3.7,
+  "hump_marked": true,
+  "potholes": [
+   [
+    0.8,
+    9,
+    0.6,
+    0.5
+   ]
+  ],
+  "signs": [
+   [
+    "cautionary",
+    4.5,
+    18
+   ],
+   [
+    "stop",
+    -4.4,
+    25
+   ]
+  ],
+  "signal_at": [
+   4.2,
+   28
+  ],
+  "poles": [
+   [
+    -5,
+    20
+   ]
+  ],
+  "night": false,
+  "noise": 8.0,
+  "seed": 0,
+  "asphalt_gray": 95,
+  "shadow": false
+ }
+}

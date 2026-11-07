@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+data/models/*.pt
+data/models/*.onnx
+data/models/*.pth
+data/samples/videos/
+data/datasets/
+outputs/
+runs/
+*.log
+.DS_Store
