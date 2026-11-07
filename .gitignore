@@ -15,3 +15,7 @@ outputs/
 runs/
 *.log
 .DS_Store
+
+# trained CFI detectors are shipped (small, trained on public data)
+!data/models/cfi_damage.pt
+!data/models/cfi_signs.pt
