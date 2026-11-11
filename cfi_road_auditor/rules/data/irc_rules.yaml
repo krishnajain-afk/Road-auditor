@@ -799,3 +799,29 @@ rules:
   recommendation: "Provide LED luminaires at junction and crossing approaches."
   agency: "ULB electrical"
   confidence: medium
+
+- id: PED-011
+  category: pedestrian
+  title: Footpath surface broken / uneven / missing pavers
+  standard_ref: "IRC:103-2012 Cl. 5.4 (footpath surface: firm, even, non-slip, well drained); Cl. 5.2 (level changes); IRC:SP:88 checklist 5.9"
+  requirement: "Footpath surface shall be even, firm and continuous with no broken pavers, open joints, trip hazards or missing covers."
+  check: {type: asset_attr, asset: pothole, attr: where, op: "==", threshold: footpath}
+  severity: medium
+  likelihood: probable
+  users: [pedestrians, persons with disabilities, elderly]
+  recommendation: "Re-lay pavers on compacted bedding, replace missing utility covers, remove trip hazards; maintain cross-fall 1.5-2% to the kerb."
+  agency: "ULB"
+  confidence: high
+
+- id: PED-012
+  category: pedestrian
+  title: Obstruction inside footpath clear width (tree / pole / slab / parked vehicle)
+  standard_ref: "IRC:103-2012 Cl. 5.1 & 5.3 (1.8 m obstruction-free zone; furniture, trees and utilities in a separate furniture zone); IRC:SP:88 checklist 5.9 item 44"
+  requirement: "No tree, pole, cabinet, raised cover, hoarding or parked vehicle within the 1.8 m pedestrian clear width; furniture/trees in a separate zone."
+  check: {type: asset_conf, asset: footpath_obstruction, min_conf: 0.4}
+  severity: high
+  likelihood: frequent
+  users: [pedestrians, persons with disabilities, elderly]
+  recommendation: "Re-align the walking zone around trees with a continuous 1.8 m clear path; relocate poles/cabinets to the furniture zone; make utility covers flush; bollards (0.9 m gap) against two-wheeler parking; enforce no-parking."
+  agency: "ULB / Utility agency / Traffic police"
+  confidence: high

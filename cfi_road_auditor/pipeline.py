@@ -89,10 +89,11 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
                        confidence=0.6 if src != "default" else 0.4)
     sample = [cv2.cvtColor(cv2.imread(f.path), cv2.COLOR_BGR2GRAY) for f in frames[:: max(1, len(frames) // 25)][:25]]
     cam = calibrate_pitch_from_frames(sample, cam)
-    cam = calibrate_height_from_zebra(frames, cam, cfg)
+    if cfg.survey_mode != "walk":
+        cam = calibrate_height_from_zebra(frames, cam, cfg)
     log.info("camera: hfov %.1f (%s) pitch %.1f height %.2f", cam.hfov_deg or 0, cam.source, cam.pitch_deg, cam.height_m)
     # 3. perception
-    detectors = build_detectors(cfg.perception, cam)
+    detectors = build_detectors(cfg.perception, cam, cfg.survey_mode)
     names = [d.name for d in detectors]
     log.info("detectors: %s", names)
     detections: List[Detection] = []
@@ -110,9 +111,25 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
                 frame_metrics[fr.index] = dict(getattr(d, "last_metrics", {}))
         if cfg.verbose and i % 25 == 0:
             log.info("frame %d/%d, %d detections so far", i + 1, len(frames), len(detections))
-    # 3b. optional VLM checklist pass
+    # 3b. optional VLM checklist pass (live API, or cached / reviewed JSON per frame)
     vlm_used = False
-    if cfg.perception.use_vlm:
+    if cfg.perception.vlm_cache_dir:
+        from .vlm.claude_vision import vlm_to_detections, vlm_to_metrics
+        import json as _json
+        cdir = Path(cfg.perception.vlm_cache_dir)
+        for fr in frames:
+            jp = cdir / (Path(fr.path).stem + ".json")
+            if jp.exists():
+                try:
+                    j = _json.loads(jp.read_text())
+                except Exception:
+                    continue
+                vlm_used = True
+                detections.extend(vlm_to_detections(fr, j, fw, fh))
+                frame_metrics.setdefault(fr.index, {}).update(vlm_to_metrics(j))
+                frame_metrics[fr.index]["vlm_raw"] = j
+        log.info("VLM cache: %d frame checklists loaded", sum(1 for fr in frames if (cdir / (Path(fr.path).stem + ".json")).exists()))
+    if cfg.perception.use_vlm and not vlm_used:
         try:
             from .vlm.claude_vision import ClaudeVisionAuditor, vlm_to_detections, vlm_to_metrics
             vlm = ClaudeVisionAuditor(model=cfg.perception.vlm_model)
@@ -136,6 +153,7 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     moving = count_moving_per_frame(detections)
     ctx = dict(context or {})
     ctx["capabilities"] = detectable_assets(names, vlm_used)
+    ctx["survey_mode"] = cfg.survey_mode
     # VLM per-frame metrics are stored with vlm_ prefix; expose footpath metrics under the names rules expect
     for k, m in frame_metrics.items():
         for src_k, dst_k in (("vlm_footpath_present", "vlm_footpath_present"),):
@@ -163,6 +181,11 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
         "tool": f"CFI Road Auditor v{__version__}",
     }
     limitations = _limitations(rm, cam, names, vlm_used, len(track))
+    if cfg.survey_mode == "walk":
+        limitations.insert(1, "Walking survey: the camera is on the footpath, so carriageway geometry (lane width, markings, curve radius) is not measured; the surface width under the camera is reported as footpath width and surface defects as footpath defects. Carriageway-side items are assessed only where the camera sees them.")
+        methodology["survey_mode"] = "walk (eye-level camera on the footpath)"
+    else:
+        methodology["survey_mode"] = "drive (vehicle-mounted camera)"
     report = build_report(rm, findings, compliance, summary, cfg.title, methodology, limitations)
     report.checklist = checklist
     from collections import Counter
@@ -209,6 +232,8 @@ def _promote_vlm_metrics(rm) -> None:
         if "footpath_present" in seg.metrics:
             seg.flags["footpath_assessed"] = True
             seg.flags["has_footpath"] = seg.metrics["footpath_present"] > 0.5
+        if rm.context.get("survey_mode") == "walk":
+            seg.flags["walk_mode"] = True
         if "pedestrians_on_carriageway" in seg.metrics and "pedestrian_per_frame" not in seg.metrics:
             seg.metrics["pedestrian_per_frame"] = seg.metrics["pedestrians_on_carriageway"]
         if "intersection_present" in seg.metrics and seg.metrics["intersection_present"] > 0.5:

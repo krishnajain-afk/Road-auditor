@@ -143,8 +143,14 @@ def vlm_to_detections(frame: FrameRef, j: Dict[str, Any], w: int, h: int) -> Lis
     hz_map = {"pothole": AssetType.POTHOLE, "open_manhole": AssetType.OPEN_MANHOLE, "debris": AssetType.DEBRIS, "encroachment": AssetType.HAWKER_ENCROACHMENT,
               "hawker": AssetType.HAWKER_ENCROACHMENT, "parked_vehicle": AssetType.PARKED_VEHICLE, "wrong_side_vehicle": AssetType.WRONG_SIDE_VEHICLE,
               "animal": AssetType.ANIMAL, "construction": AssetType.CONSTRUCTION, "drain_uncovered": AssetType.DRAIN}
+    if rs.get("poles_on_footpath"):
+        add(AssetType.FOOTPATH_OBSTRUCTION, "vlm_pole_on_footpath", 0.6, {"where": "footpath", "note": "pole / post inside footpath clear width"})
     for hz in j.get("hazards", []) or []:
         a = hz_map.get(hz.get("type"), AssetType.UNKNOWN)
+        if a == AssetType.UNKNOWN and hz.get("where") == "footpath":
+            a = AssetType.FOOTPATH_OBSTRUCTION      # 'other' on the footpath = something in the pedestrian clear width
+        if a == AssetType.PARKED_VEHICLE and hz.get("where") == "footpath":
+            a = AssetType.FOOTPATH_OBSTRUCTION
         if a == AssetType.UNKNOWN:
             continue
         conf = {"critical": 0.75, "high": 0.7, "medium": 0.6, "low": 0.5}.get(hz.get("severity"), 0.55)

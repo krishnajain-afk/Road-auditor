@@ -53,7 +53,8 @@ async def create_audit(background: BackgroundTasks, media: UploadFile = File(...
                        location: str = Form(""), design_speed: Optional[float] = Form(None), posted_speed: Optional[float] = Form(None),
                        camera_height: float = Form(1.3), camera_pitch: float = Form(2.0), hfov: float = Form(70.0),
                        interval: float = Form(1.0), max_frames: int = Form(600), segment: float = Form(50.0),
-                       use_vlm: bool = Form(False), assumed_speed: float = Form(30.0), height_locked: bool = Form(False)):
+                       use_vlm: bool = Form(False), assumed_speed: float = Form(30.0), height_locked: bool = Form(False),
+                       survey_mode: str = Form("drive")):
     try:
         rc, tr = RoadClass(road_class), Terrain(terrain)
     except ValueError as e:
@@ -68,7 +69,8 @@ async def create_audit(background: BackgroundTasks, media: UploadFile = File(...
         tp = jd / ("track" + Path(track.filename).suffix.lower())
         with open(tp, "wb") as f:
             shutil.copyfileobj(track.file, f)
-    cfg = AuditConfig(road_class=rc, terrain=tr, design_speed_kmph=design_speed, posted_speed_kmph=posted_speed,
+    cfg = AuditConfig(survey_mode=survey_mode if survey_mode in ("drive", "walk") else "drive",
+                      road_class=rc, terrain=tr, design_speed_kmph=design_speed, posted_speed_kmph=posted_speed,
                       perception=PerceptionConfig(use_vlm=use_vlm),
                       sampling=SamplingConfig(frame_interval_s=interval, max_frames=max_frames, segment_length_m=segment),
                       camera=CameraDefaults(height_m=camera_height, pitch_deg=camera_pitch, hfov_deg=hfov, height_locked=height_locked),

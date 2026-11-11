@@ -33,7 +33,7 @@ def _resolve(path: Optional[str], role: str) -> Optional[str]:
     return None
 
 
-def build_detectors(cfg: PerceptionConfig, cam: CameraModel) -> List[Detector]:
+def build_detectors(cfg: PerceptionConfig, cam: CameraModel, survey_mode: str = "drive") -> List[Detector]:
     dets: List[Detector] = []
     for role, w in (("general", cfg.yolo_weights), ("damage", cfg.damage_weights), ("sign", cfg.sign_weights)):
         p = _resolve(w, role)
@@ -50,5 +50,5 @@ def build_detectors(cfg: PerceptionConfig, cam: CameraModel) -> List[Detector]:
         has_damage = any(getattr(d, "role", "") == "damage" for d in dets)
         # keep the classical pothole detector as a second, conservative source even when a learned model exists:
         # fusion merges co-located observations, so the union raises recall at little precision cost
-        dets.append(ClassicalDetector(cam, enable_potholes=True, pothole_conf_cap=0.55 if has_damage else 0.65))
+        dets.append(ClassicalDetector(cam, enable_potholes=True, pothole_conf_cap=0.55 if has_damage else 0.65, survey_mode=survey_mode))
     return dets

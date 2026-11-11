@@ -111,6 +111,7 @@ class AssetType(str, Enum):
     ANIMAL = "animal"
     PARKED_VEHICLE = "parked_vehicle"
     HAWKER_ENCROACHMENT = "hawker_encroachment"
+    FOOTPATH_OBSTRUCTION = "footpath_obstruction"      # tree, pole, cabinet, slab, parked vehicle inside the clear width
     CONSTRUCTION = "construction"
     WRONG_SIDE_VEHICLE = "wrong_side_vehicle"
     # context

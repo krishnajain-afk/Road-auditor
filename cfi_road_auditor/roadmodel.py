@@ -44,6 +44,10 @@ def build_road_model(
         for lw in m.get("line_widths_m", []) or []:
             meas.append(Measurement(name="marking_line_width_m", value=float(lw), unit="m", chainage_m=ch, confidence=0.5, method="ipm",
                                     frame_index=fr.index, geo=fr.geo))
+        if m.get("footpath_width_m"):
+            meas.append(Measurement(name="footpath_width_m", value=float(m["footpath_width_m"]), unit="m", chainage_m=ch, confidence=0.5,
+                                    method="ipm", frame_index=fr.index, geo=fr.geo))
+            meas.append(Measurement(name="footpath_present", value=1.0, unit="", chainage_m=ch, confidence=0.5, method="ipm", frame_index=fr.index, geo=fr.geo))
         if "road_luma" in m:
             meas.append(Measurement(name="road_luma", value=float(m["road_luma"]), unit="0-255", chainage_m=ch, confidence=0.6,
                                     method="photometric", frame_index=fr.index, geo=fr.geo))

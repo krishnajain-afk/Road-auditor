@@ -608,11 +608,12 @@ def detect_painted_kerb(bev: np.ndarray, meta: Dict, frame: FrameRef, ipm: IPM) 
 class ClassicalDetector(Detector):
     name = "classical_cv"
 
-    def __init__(self, cam: CameraModel, enable_potholes: bool = True, pothole_conf_cap: float = 0.65):
+    def __init__(self, cam: CameraModel, enable_potholes: bool = True, pothole_conf_cap: float = 0.65, survey_mode: str = "drive"):
         self.cam = cam
         self.ipm = IPM(cam)
         self.enable_potholes = enable_potholes
         self.pothole_conf_cap = pothole_conf_cap
+        self.survey_mode = survey_mode
         self.last_metrics: Dict[str, object] = {}
         self.last_scale_hint: Optional[float] = None
 
@@ -636,11 +637,17 @@ class ClassicalDetector(Detector):
                 r1 = int(meta["H"] - (z0 + L + 0.3 - meta["z_range"][0]) * meta["px_per_m"])
                 r2 = int(meta["H"] - (z0 - 0.3 - meta["z_range"][0]) * meta["px_per_m"])
                 excl.append((r1, r2))
-        lane_dets, lane_info = detect_lane_lines(bev, meta, frame, self.ipm, excl)
+        if self.survey_mode == "walk":
+            # on a footpath the "lines" are tactile strips / paver joints and transverse bands are kerb ramps: not road markings
+            lane_dets, lane_info = [], {"lane_widths_m": [], "line_widths_m": [], "n_lines": 0}
+            zebra, stops, humps = [], [], []
+        else:
+            lane_dets, lane_info = detect_lane_lines(bev, meta, frame, self.ipm, excl)
         dets += lane_dets + zebra + stops + humps
-        dets += detect_painted_kerb(bev, meta, frame, self.ipm)
+        if self.survey_mode != "walk":
+            dets += detect_painted_kerb(bev, meta, frame, self.ipm)
         # carriageway width: prefer outermost longitudinal lines (edge lines / kerb paint) over the colour mask
-        lats = sorted(d.attributes["lateral_m"] for d in lane_dets)
+        lats = sorted(d.attributes["lateral_m"] for d in lane_dets) if self.survey_mode != "walk" else []
         cw_lines = None
         if len(lats) >= 2 and (lats[-1] - lats[0]) >= 4.5 and lats[0] < -1.0 and lats[-1] > 1.0:
             cw_lines = (lats[-1] - lats[0] + 0.3, 0.75)
@@ -656,6 +663,8 @@ class ClassicalDetector(Detector):
                     bands.append((z0 - margin, z0 + L + margin))
             for d in detect_potholes_classical(img, road, frame, self.ipm, bands, (cw[0] / 2) if cw else None):
                 d.confidence = min(d.confidence, self.pothole_conf_cap)
+                if self.survey_mode == "walk":
+                    d.attributes["where"] = "footpath"
                 dets.append(d)
         # scale hint: IRC:35 zebra stripe period is 1.0 m (0.5 stripe + 0.5 gap) -> corrects unknown camera height
         hints = [d.attributes["stripe_period_m"] for d in zebra if d.attributes.get("n_stripes", 0) >= 4]
@@ -664,9 +673,13 @@ class ClassicalDetector(Detector):
         dets += detect_signal_heads(img, frame, self.ipm)
         dets += detect_poles(img, frame, self.ipm)
         light = night_lighting_metrics(img, self.ipm)
-        self.last_metrics = {"carriageway_width_m": cw[0] if cw else None, "carriageway_conf": cw[1] if cw else 0.0,
-                             **lane_info, **light, "road_mask_frac": float((road > 0).mean()),
-                             "scale_hint": self.last_scale_hint}
+        if self.survey_mode == "walk":
+            self.last_metrics = {"footpath_width_m": cw[0] if cw else None, "footpath_present": 1.0 if cw else None,
+                                 **light, "road_mask_frac": float((road > 0).mean()), "scale_hint": None}
+        else:
+            self.last_metrics = {"carriageway_width_m": cw[0] if cw else None, "carriageway_conf": cw[1] if cw else 0.0,
+                                 **lane_info, **light, "road_mask_frac": float((road > 0).mean()),
+                                 "scale_hint": self.last_scale_hint}
         for d in dets:
             d.attributes.setdefault("frame_metrics", {})
         return dets

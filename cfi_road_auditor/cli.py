@@ -34,6 +34,8 @@ def main(argv=None) -> int:
     ap.add_argument("--no-classical", action="store_true")
     ap.add_argument("--vlm", action="store_true", help="run Claude vision checklist pass (needs ANTHROPIC_API_KEY)")
     ap.add_argument("--vlm-frames", type=int, default=24)
+    ap.add_argument("--vlm-cache", help="directory with per-frame checklist JSON (offline / reviewed vision results)")
+    ap.add_argument("--mode", default="drive", choices=["drive", "walk"], help="drive = vehicle camera; walk = auditor walking the footpath")
     ap.add_argument("--assumed-speed", type=float, default=30.0, help="km/h used for chainage when no GPS")
     ap.add_argument("-q", "--quiet", action="store_true")
     a = ap.parse_args(argv)
@@ -41,7 +43,8 @@ def main(argv=None) -> int:
     cfg = AuditConfig(
         road_class=RoadClass(a.road_class), terrain=Terrain(a.terrain), design_speed_kmph=a.design_speed, posted_speed_kmph=a.posted_speed,
         perception=PerceptionConfig(yolo_weights=a.weights, damage_weights=a.damage_weights, sign_weights=a.sign_weights,
-                                    use_classical=not a.no_classical, use_vlm=a.vlm, vlm_max_frames=a.vlm_frames),
+                                    use_classical=not a.no_classical, use_vlm=a.vlm, vlm_max_frames=a.vlm_frames, vlm_cache_dir=a.vlm_cache),
+        survey_mode=a.mode,
         sampling=SamplingConfig(frame_interval_s=a.interval, max_frames=a.max_frames, segment_length_m=a.segment),
         camera=CameraDefaults(height_m=a.camera_height, pitch_deg=a.camera_pitch, hfov_deg=a.hfov),
         out_dir=Path(a.out), title=a.title, verbose=not a.quiet,

@@ -29,6 +29,7 @@ class PerceptionConfig(BaseModel):
     use_vlm: bool = False                         # Claude vision checklist pass
     vlm_model: str = "claude-fable-5-1"
     vlm_max_frames: int = 24
+    vlm_cache_dir: Optional[str] = None           # directory of <frame_stem>.json checklists (offline / reviewed VLM results)
     device: str = "cpu"
 
 
@@ -48,6 +49,7 @@ class CameraDefaults(BaseModel):
 
 
 class AuditConfig(BaseModel):
+    survey_mode: str = "drive"        # drive = camera in/on a vehicle on the carriageway; walk = auditor walking the footpath
     road_class: RoadClass = RoadClass.URBAN_ARTERIAL
     terrain: Terrain = Terrain.PLAIN
     design_speed_kmph: Optional[float] = None

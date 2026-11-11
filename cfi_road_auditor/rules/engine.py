@@ -222,6 +222,8 @@ class RuleEngine:
     # ---- check implementations ------------------------------------------------
     def _chk_asset_conf(self, rule, chk, rm, assets_by):
         items = [a for a in assets_by.get(chk["asset"], []) if a.confidence >= chk.get("min_conf", 0.3)]
+        if chk["asset"] == "pothole":   # footpath defects are reported under PED-011, carriageway potholes under PAV-*
+            items = [a for a in items if a.attributes.get("where") != "footpath"]
         fs = []
         for a in items:
             size = f", size {a.size_m[0]:.2f} x {a.size_m[1]:.2f} m" if a.size_m else ""
@@ -235,7 +237,7 @@ class RuleEngine:
     def _chk_density(self, rule, chk, rm, assets_by):
         if rm.length_m < 200:
             return [], "not_assessed", "surveyed length < 200 m"
-        n = len([a for a in assets_by.get(chk["asset"], []) if a.confidence >= chk.get("min_conf", 0.3)])
+        n = len([a for a in assets_by.get(chk["asset"], []) if a.confidence >= chk.get("min_conf", 0.3) and a.attributes.get("where") != "footpath"])
         per_km = n / (rm.length_m / 1000.0)
         thr = chk["per_km_gt"]
         if per_km > thr:

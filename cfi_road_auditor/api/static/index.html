@@ -19,6 +19,7 @@ button{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:11p
 <form id="f">
 <label>Video or photo *</label><input type="file" name="media" required accept="video/*,image/*">
 <label>GPS track (optional: .gpx / .csv / DJI .srt / .nmea)</label><input type="file" name="track">
+<label>Survey mode</label><select name="survey_mode"><option value="drive">Drive (camera on / in a vehicle)</option><option value="walk">Walk (auditor walking the footpath, e.g. smart glasses)</option></select>
 <div class="row"><div><label>Road class</label><select name="road_class">
 <option value="urban_arterial">Urban arterial</option><option value="urban_sub_arterial">Urban sub-arterial</option><option value="urban_collector">Urban collector</option><option value="urban_local">Urban local street</option>
 <option value="national_highway">National Highway</option><option value="state_highway">State Highway</option><option value="major_district_road">Major District Road</option><option value="other_district_road">Other District Road</option><option value="village_road">Village Road</option><option value="expressway">Expressway</option></select></div>

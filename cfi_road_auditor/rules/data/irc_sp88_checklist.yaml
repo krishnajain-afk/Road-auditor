@@ -68,11 +68,11 @@ sections:
 - id: "5.9"
   title: Vulnerable road users
   items:
-  - {n: 40, q: "Are footpaths continuous, of adequate clear width and height, surfaced, free of obstructions?", rules: [PED-001, PED-002, PED-003]}
+  - {n: 40, q: "Are footpaths continuous, of adequate clear width and height, surfaced, free of obstructions?", rules: [PED-001, PED-002, PED-003, PED-011, PED-012]}
   - {n: 41, q: "Are kerb ramps and tactile paving provided at every crossing and footpath end?", rules: [PED-009], manual: true}
   - {n: 42, q: "Are safe crossing points provided at desire lines and adequate spacing; marked, signed, lit, signalised or raised where needed?", rules: [PED-005, MRK-003, LGT-003]}
   - {n: 43, q: "Are refuges provided on wide roads; do guardrails channelise pedestrians without trapping them?", rules: [PED-006, PED-010]}
-  - {n: 44, q: "Are squeeze points absent (footpath forced onto carriageway by poles, shelters, parking)?", rules: [PED-003, PED-004, PRK-001]}
+  - {n: 44, q: "Are squeeze points absent (footpath forced onto carriageway by poles, shelters, parking)?", rules: [PED-003, PED-004, PED-012, PRK-001]}
   - {n: 45, q: "Are cycle tracks / NMT lanes continuous, protected, free of parked vehicles?", rules: [NMT-001]}
   - {n: 46, q: "Are schools, hospitals, markets and bus stops provided with calming, signs and crossings?", rules: [TC-003, BUS-001]}
   - {n: 47, q: "Are two-wheeler hazards (slippery covers, barrier posts, edge drops, potholes) controlled?", rules: [PAV-001, PAV-005]}
