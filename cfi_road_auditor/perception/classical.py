@@ -460,7 +460,10 @@ def detect_signs_by_colour(img: np.ndarray, frame: FrameRef, ipm: IPM) -> List[D
             attrs = {"colour": colour, "shape": shape, "fill": round(float(fill), 2), "forward_m": round(rng, 1), "plate_px": int(bw),
                      "lateral_m": round((x + bw / 2 - ipm.cam.cx) / ipm.cam.fx * rng, 2)}
             if bw >= 22 and rng <= 40:   # height from the plate's bottom edge is only reliable for near, well-resolved plates
-                attrs["mounting_height_m"] = round(float(ipm.height_above_ground(y + bh, rng)), 2)
+                mh = float(ipm.height_above_ground(y + bh, rng))
+                if not (0.6 <= mh <= 6.5):
+                    continue             # murals, posters, vehicle lights: a sign plate is not at ground level or 7 m up
+                attrs["mounting_height_m"] = round(mh, 2)
             out.append(_det(asset, label, conf, BBox(x1=x, y1=y, x2=x + bw, y2=y + bh), frame, attrs))
     return out[:10]
 

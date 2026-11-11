@@ -101,6 +101,9 @@ class YoloDetector(Detector):
             x1, y1, x2, y2 = [float(v) for v in b.xyxy[0].tolist()]
             poly = [(float(p[0]), float(p[1])) for p in polys[i]] if polys is not None and i < len(polys) else None
             attrs = {"model": self.name}
+            if self.role == "general" and label in ("bench", "fire hydrant", "umbrella", "potted plant", "parking meter"):
+                conf *= 0.6      # proxy classes (bench~bus stop, hydrant~bollard, umbrella~hawker): weak evidence on their own
+                attrs["proxy_class"] = label
             if self.role == "sign":
                 attrs["text"] = label
                 digits = "".join(ch for ch in label if ch.isdigit())

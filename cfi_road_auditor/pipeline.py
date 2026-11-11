@@ -73,8 +73,9 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     if not track:
         track = track_from_video(media)
     log.info("track points: %d", len(track))
-    frames = extract_frames(media, str(frames_dir), interval_s=cfg.sampling.frame_interval_s, max_frames=cfg.sampling.max_frames,
-                            resize_long_edge=cfg.sampling.resize_long_edge)
+    frames = _load_frame_manifest(cfg, media) or extract_frames(media, str(frames_dir), interval_s=cfg.sampling.frame_interval_s,
+                                                                   max_frames=cfg.sampling.max_frames, resize_long_edge=cfg.sampling.resize_long_edge)
+    _save_frame_manifest(frames_dir, cfg, media, frames)
     if len(track) >= 2:
         frames = sync_track_to_frames(frames, track)
     else:
@@ -88,7 +89,13 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     cam = build_camera(fw, fh, hfov, height_m=cfg.camera.height_m, pitch_deg=cfg.camera.pitch_deg, source=src,
                        confidence=0.6 if src != "default" else 0.4)
     sample = [cv2.cvtColor(cv2.imread(f.path), cv2.COLOR_BGR2GRAY) for f in frames[:: max(1, len(frames) // 25)][:25]]
-    cam = calibrate_pitch_from_frames(sample, cam)
+    cam_vp = calibrate_pitch_from_frames(sample, cam)
+    if cfg.survey_mode == "walk":
+        # head-worn / hand-held cameras: the vanishing point is often set by walls, fences and tree lines, not the path.
+        # Accept the estimate only when it is a plausible downward look (5-25 deg); otherwise keep the user's pitch.
+        cam = cam_vp if 5.0 <= cam_vp.pitch_deg <= 25.0 else cam
+    else:
+        cam = cam_vp
     if cfg.survey_mode != "walk":
         cam = calibrate_height_from_zebra(frames, cam, cfg)
     log.info("camera: hfov %.1f (%s) pitch %.1f height %.2f", cam.hfov_deg or 0, cam.source, cam.pitch_deg, cam.height_m)
@@ -149,7 +156,13 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     frames_by = {f.index: f for f in frames}
     from .perception.fusion import set_frame_half_widths
     set_frame_half_widths(frame_metrics)
-    assets = fuse(detections, frames_by, cam)
+    if cfg.survey_mode == "walk":
+        for d in detections:
+            if d.asset.value == "pothole" and d.bbox is not None and "where" not in d.attributes:
+                # on a footpath walk the central field of view is the footpath; the carriageway is off to one side
+                d.attributes["where"] = "footpath" if 0.15 * fw <= d.bbox.cx <= 0.85 * fw else "carriageway"
+    chs = [f.chainage_m for f in frames if f.chainage_m is not None]
+    assets = fuse(detections, frames_by, cam, max_chainage=(max(chs) if chs else None))
     moving = count_moving_per_frame(detections)
     ctx = dict(context or {})
     ctx["capabilities"] = detectable_assets(names, vlm_used)
@@ -193,6 +206,43 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
     write_all_outputs(report, str(out_dir), cfg.sampling.segment_length_m)
     log.info("done in %.1fs: %d findings, score %.1f, outputs %s", time.time() - t0, len(findings), summary.overall_score, list(report.outputs))
     return report
+
+
+def _manifest_key(cfg, media) -> Dict:
+    return {"media": os.path.abspath(media.path), "size": os.path.getsize(media.path) if os.path.exists(media.path) else 0,
+            "interval_s": cfg.sampling.frame_interval_s, "max_frames": cfg.sampling.max_frames, "resize": cfg.sampling.resize_long_edge}
+
+
+def _load_frame_manifest(cfg, media) -> Optional[List[FrameRef]]:
+    """Reuse frames extracted by an earlier run (same media + sampling), from this out_dir or cfg.sampling.reuse_frames_dir."""
+    import json as _json
+    for d in [cfg.sampling.reuse_frames_dir, str(Path(cfg.out_dir) / "frames")]:
+        if not d:
+            continue
+        mp = Path(d) / "manifest.json"
+        if not mp.exists():
+            continue
+        try:
+            m = _json.loads(mp.read_text())
+        except Exception:
+            continue
+        if m.get("key") != _manifest_key(cfg, media):
+            continue
+        frames = [FrameRef(**f) for f in m.get("frames", [])]
+        if frames and all(os.path.exists(f.path) for f in frames):
+            log.info("reusing %d extracted frames from %s", len(frames), d)
+            return frames
+    return None
+
+
+def _save_frame_manifest(frames_dir, cfg, media, frames) -> None:
+    import json as _json
+    try:
+        Path(frames_dir).mkdir(parents=True, exist_ok=True)
+        (Path(frames_dir) / "manifest.json").write_text(_json.dumps({"key": _manifest_key(cfg, media),
+            "frames": [f.model_dump(exclude={"geo", "chainage_m"}) for f in frames]}))
+    except Exception as e:  # pragma: no cover
+        log.warning("could not save frame manifest: %s", e)
 
 
 def calibrate_height_from_zebra(frames, cam, cfg, max_frames: int = 40):

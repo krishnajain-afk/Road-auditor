@@ -25,6 +25,7 @@ def main(argv=None) -> int:
     ap.add_argument("--interval", type=float, default=1.0, help="frame interval seconds")
     ap.add_argument("--max-frames", type=int, default=600)
     ap.add_argument("--segment", type=float, default=50.0, help="segment length m")
+    ap.add_argument("--reuse-frames", help="frames directory of a previous run of the same media (skips decoding)")
     ap.add_argument("--camera-height", type=float, default=1.3)
     ap.add_argument("--camera-pitch", type=float, default=2.0)
     ap.add_argument("--hfov", type=float, default=70.0)
@@ -45,7 +46,7 @@ def main(argv=None) -> int:
         perception=PerceptionConfig(yolo_weights=a.weights, damage_weights=a.damage_weights, sign_weights=a.sign_weights,
                                     use_classical=not a.no_classical, use_vlm=a.vlm, vlm_max_frames=a.vlm_frames, vlm_cache_dir=a.vlm_cache),
         survey_mode=a.mode,
-        sampling=SamplingConfig(frame_interval_s=a.interval, max_frames=a.max_frames, segment_length_m=a.segment),
+        sampling=SamplingConfig(frame_interval_s=a.interval, max_frames=a.max_frames, segment_length_m=a.segment, reuse_frames_dir=a.reuse_frames),
         camera=CameraDefaults(height_m=a.camera_height, pitch_deg=a.camera_pitch, hfov_deg=a.hfov),
         out_dir=Path(a.out), title=a.title, verbose=not a.quiet,
     )

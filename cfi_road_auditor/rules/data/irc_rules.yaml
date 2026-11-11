@@ -337,7 +337,7 @@ rules:
   title: Signalised junction without pedestrian signal / phase
   standard_ref: "IRC:93-1985 Cl. 5 (pedestrian signals); IRC:103-2012 Cl. 7.4; IRC:SP:88 checklist"
   requirement: "Signalised intersections in urban areas shall provide pedestrian signal heads and an all-red/pedestrian phase."
-  check: {type: asset_requires, asset: traffic_signal, requires: [pedestrian_signal], upstream_m: 40, downstream_m: 40}
+  check: {type: asset_requires, asset: traffic_signal, requires: [pedestrian_signal], upstream_m: 40, downstream_m: 40, min_conf: 0.6}
   applies_to: [urban_arterial, urban_sub_arterial, urban_collector, urban_local]
   severity: high
   likelihood: probable
@@ -350,7 +350,7 @@ rules:
   title: Signalised junction without zebra crossing
   standard_ref: "IRC:35-2015 Cl. 6.5; IRC:103-2012 Cl. 7.2"
   requirement: "Every arm of a signalised junction shall have a marked pedestrian crossing."
-  check: {type: asset_requires, asset: traffic_signal, requires: [zebra_crossing], upstream_m: 45, downstream_m: 45}
+  check: {type: asset_requires, asset: traffic_signal, requires: [zebra_crossing], upstream_m: 45, downstream_m: 45, min_conf: 0.6}
   severity: high
   likelihood: probable
   users: [pedestrians]
@@ -412,7 +412,7 @@ rules:
   title: Sign mounted too low / too high
   standard_ref: "IRC:67-2022 Cl. 4: bottom edge 2.0-2.5 m above kerb in urban areas (pedestrian clearance); 1.5-2.0 m rural (edge of carriageway)"
   requirement: "Urban: sign bottom 2.0-2.5 m above footpath; rural: 1.5-2.0 m above road edge."
-  check: {type: asset_attr, asset: sign_unknown, attr: mounting_height_m, op: outside, threshold: {urban: [1.9, 2.6], rural: [1.4, 2.3], expressway: [1.8, 2.6]}, tolerance: 0.0}
+  check: {type: asset_attr, asset: sign_unknown, attr: mounting_height_m, op: outside, threshold: {urban: [1.9, 2.6], rural: [1.4, 2.3], expressway: [1.8, 2.6]}, tolerance: 0.0, min_conf: 0.6}
   severity: low
   likelihood: occasional
   users: [pedestrians, all]
@@ -424,7 +424,7 @@ rules:
   title: Signalised intersection without advance 'Traffic Signal Ahead' sign (high-speed approach)
   standard_ref: "IRC:67-2022 (cautionary 'Traffic Signal Ahead'); IRC:93-1985 Cl. 6"
   requirement: "Where approach speed >= 50 km/h or signal visibility < SSD, provide 'Traffic Signal Ahead' cautionary sign."
-  check: {type: asset_requires, asset: traffic_signal, requires: [sign_cautionary, sign_unknown], upstream_m: 150, downstream_m: 0, requires_speed_ge: 50}
+  check: {type: asset_requires, asset: traffic_signal, requires: [sign_cautionary, sign_unknown], upstream_m: 150, downstream_m: 0, requires_speed_ge: 50, min_conf: 0.6}
   severity: medium
   likelihood: occasional
   users: [all]
@@ -513,7 +513,7 @@ rules:
   title: Signalised intersection without stop line
   standard_ref: "IRC:35-2015 Cl. 6.4; IRC:93-1985"
   requirement: "Stop line (200-300 mm) on every signalised approach, 1-2 m behind the pedestrian crossing."
-  check: {type: asset_requires, asset: traffic_signal, requires: [stop_line], upstream_m: 45, downstream_m: 30}
+  check: {type: asset_requires, asset: traffic_signal, requires: [stop_line], upstream_m: 45, downstream_m: 30, min_conf: 0.6}
   severity: medium
   likelihood: probable
   users: [all]
@@ -664,7 +664,7 @@ rules:
   title: Hawker / encroachment on carriageway or footpath
   standard_ref: "IRC:103-2012 Cl. 5.3; Street Vendors Act 2014 (vending zones); IRC:SP:88 checklist"
   requirement: "No encroachment on carriageway; vending only in designated zones off the footpath clear width."
-  check: {type: asset_conf, asset: hawker_encroachment, min_conf: 0.4}
+  check: {type: asset_conf, asset: hawker_encroachment, min_conf: 0.55}
   severity: medium
   likelihood: probable
   users: [pedestrians, all]
@@ -676,7 +676,7 @@ rules:
   title: Bus stop without bus bay / marking near junction
   standard_ref: "IRC:80-1981 (bus bays: 3 m wide, 75 m long with tapers; >= 75 m from junction); IRC:SP:88 checklist"
   requirement: "Bus stops on arterials in bus bays or marked kerbside boxes, away from junctions and crossings."
-  check: {type: asset_requires, asset: bus_stop, requires: [bus_bay], upstream_m: 40, downstream_m: 40}
+  check: {type: asset_requires, asset: bus_stop, requires: [bus_bay], upstream_m: 40, downstream_m: 40, min_conf: 0.6}
   applies_to: [urban_arterial, urban_sub_arterial, national_highway, state_highway]
   severity: medium
   likelihood: occasional
@@ -731,7 +731,7 @@ rules:
   title: Sign plate smaller than the size required for the design speed
   standard_ref: "IRC:67-2012 Table 15.1 (retained 2022): 600 mm (<= 50 km/h), 750 mm (51-65), 900 mm (66-80), 1200 mm (> 80 km/h), 1500 mm expressway"
   requirement: "Cautionary/mandatory sign size by design speed: 600 / 750 / 900 / 1200 / 1500 mm."
-  check: {type: asset_attr, asset: sign_unknown, attr: plate_size_m, op: "<", threshold: "sign_size_for_speed"}
+  check: {type: asset_attr, asset: sign_unknown, attr: plate_size_m, op: "<", threshold: "sign_size_for_speed", min_conf: 0.6}
   severity: low
   likelihood: occasional
   users: [all]
@@ -743,7 +743,7 @@ rules:
   title: Sign lateral clearance from kerb below minimum
   standard_ref: "IRC:67-2022 Cl. on siting: >= 0.3 m from kerb face (urban, 0.6 m in 2012 edition); 2-3 m from carriageway edge (rural)"
   requirement: "Sign post >= 0.3 m behind kerb (urban), 2.0-3.0 m from carriageway edge (rural), never within the footpath clear width."
-  check: {type: asset_attr, asset: sign_unknown, attr: lateral_offset_m, op: "<", threshold: {urban: 0.3, rural: 2.0, expressway: 3.0}}
+  check: {type: asset_attr, asset: sign_unknown, attr: lateral_offset_m, op: "<", threshold: {urban: 0.3, rural: 2.0, expressway: 3.0}, min_conf: 0.6}
   severity: low
   likelihood: occasional
   users: [all, pedestrians]
@@ -805,7 +805,7 @@ rules:
   title: Footpath surface broken / uneven / missing pavers
   standard_ref: "IRC:103-2012 Cl. 5.4 (footpath surface: firm, even, non-slip, well drained); Cl. 5.2 (level changes); IRC:SP:88 checklist 5.9"
   requirement: "Footpath surface shall be even, firm and continuous with no broken pavers, open joints, trip hazards or missing covers."
-  check: {type: asset_attr, asset: pothole, attr: where, op: "==", threshold: footpath}
+  check: {type: asset_attr, asset: pothole, attr: where, op: "==", threshold: footpath, min_conf: 0.5}
   severity: medium
   likelihood: probable
   users: [pedestrians, persons with disabilities, elderly]

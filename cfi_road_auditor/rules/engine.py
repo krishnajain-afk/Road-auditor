@@ -249,6 +249,7 @@ class RuleEngine:
         items = assets_by.get(chk["asset"], [])
         if chk["asset"] == "sign_unknown":
             items = [a for k, v in assets_by.items() if k.startswith("sign_") for a in v]
+        items = [a for a in items if a.confidence >= chk.get("min_conf", 0.0)]
         if not items:
             return [], "not_assessed", f"no {chk['asset']} observed"
         thr = self._threshold(rule, chk["threshold"], rm)
@@ -279,7 +280,7 @@ class RuleEngine:
         return [f], "non_compliant", "absent"
 
     def _chk_asset_requires(self, rule, chk, rm, assets_by):
-        items = assets_by.get(chk["asset"], [])
+        items = [a for a in assets_by.get(chk["asset"], []) if a.confidence >= chk.get("min_conf", 0.0)]
         if not items:
             return [], "not_assessed", f"no {chk['asset']} observed"
         if "requires_metric" in chk:

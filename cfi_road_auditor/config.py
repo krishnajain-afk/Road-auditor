@@ -39,6 +39,7 @@ class SamplingConfig(BaseModel):
     max_frames: int = 1500
     segment_length_m: float = 50.0
     resize_long_edge: int = 1280
+    reuse_frames_dir: Optional[str] = None        # reuse frames (and manifest) extracted by a previous run of the same media
 
 
 class CameraDefaults(BaseModel):

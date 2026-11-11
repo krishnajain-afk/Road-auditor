@@ -114,7 +114,8 @@ def build_road_model(
         night = [fr_by[j].is_night for j in fidx if fr_by[j].is_night is not None]
         seg.flags["is_night"] = bool(night and np.mean(night) > 0.5)
         seg.flags["has_zebra"] = seg.counts.get("zebra_crossing", 0) > 0
-        seg.flags["has_signal"] = seg.counts.get("traffic_signal", 0) > 0
+        seg.flags["has_signal"] = any(a.asset == AssetType.TRAFFIC_SIGNAL and a.confidence >= 0.6 and a.attributes.get("n_frames", 1) >= 2
+                                      and (s0 - 1e-6 <= a.chainage_m <= s1 + 1e-6 or length == 0) for a in assets)
         seg.flags["has_stop_line"] = seg.counts.get("stop_line", 0) > 0
         seg.flags["has_hump"] = seg.counts.get("speed_hump", 0) > 0
         seg.flags["has_footpath"] = bool(seg.metrics.get("footpath_present", 0) > 0.5) if "footpath_present" in seg.metrics else False

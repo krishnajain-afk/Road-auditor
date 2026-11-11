@@ -103,7 +103,31 @@ def _side(det: Detection, cam: CameraModel) -> str:
     return "left" if det.bbox.cx < cam.width_px * 0.4 else ("right" if det.bbox.cx > cam.width_px * 0.6 else "centre")
 
 
-def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: CameraModel) -> List[Asset]:
+SIGN_LIKE = {AssetType.SIGN_STOP, AssetType.SIGN_MANDATORY, AssetType.SIGN_CAUTIONARY, AssetType.SIGN_GIVE_WAY, AssetType.SIGN_INFORMATORY,
+             AssetType.SIGN_UNKNOWN, AssetType.SIGN_SPEED_LIMIT, AssetType.SIGN_PEDESTRIAN_CROSSING, AssetType.SIGN_SPEED_BREAKER, AssetType.SIGN_SCHOOL}
+
+
+def physically_plausible(d: Detection) -> bool:
+    """Reject detections whose recovered geometry cannot belong to the claimed asset (murals read as signs, sky blobs
+    projected to kilometres, etc.). Keeps VLM detections (no geometry) untouched."""
+    if d.source == Source.VLM:
+        return True
+    mh = d.attributes.get("mounting_height_m")
+    if d.asset in SIGN_LIKE and mh is not None and not (0.6 <= mh <= 6.5):
+        return False
+    if d.asset in (AssetType.POTHOLE, AssetType.CRACK_LONGITUDINAL, AssetType.CRACK_TRANSVERSE, AssetType.CRACK_ALLIGATOR, AssetType.PATCH,
+                   AssetType.MANHOLE, AssetType.OPEN_MANHOLE, AssetType.DEBRIS, AssetType.WATERLOGGING):
+        if d.ground_size_m and (d.ground_size_m[0] > 5.0 or d.ground_size_m[1] > 8.0):
+            return False
+    if d.asset in ROAD_PLANE:
+        if d.ground_xy_m and d.ground_xy_m[1] > 60.0:
+            return False
+    if d.ground_xy_m and d.ground_xy_m[1] > 120.0:
+        return False
+    return True
+
+
+def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: CameraModel, max_chainage: Optional[float] = None) -> List[Asset]:
     ipm = IPM(cam)
     by_type: Dict[AssetType, List[Detection]] = defaultdict(list)
     for d in detections:
@@ -113,6 +137,10 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
         if d.chainage_m is None:
             localise(d, fr, ipm)
         if d.asset in MOVING:
+            continue
+        if not physically_plausible(d):
+            continue
+        if max_chainage is not None and d.chainage_m is not None and d.chainage_m > max_chainage + 40.0:
             continue
         by_type[d.asset].append(d)
     assets: List[Asset] = []
@@ -139,6 +167,8 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
             conf = 1 - p_miss
             if n_frames >= 2:
                 conf = min(0.99, conf + 0.05 * (n_frames - 1))
+            if all(d.attributes.get("proxy_class") for d in cl):   # COCO proxy classes never become confident on their own
+                conf = min(conf, 0.55)
             # single low-confidence classical pothole observations are kept but flagged
             attrs: Dict = {"n_frames": n_frames}
             for d in cl:
