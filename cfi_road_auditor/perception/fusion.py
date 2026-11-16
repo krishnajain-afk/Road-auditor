@@ -139,6 +139,8 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
             continue
         if d.chainage_m is None:
             localise(d, fr, ipm)
+        if survey_mode == "walk" and d.source != Source.VLM:
+            d.attributes.pop("mounting_height_m", None)   # head-worn camera pitch is not stable enough for heights
         if d.asset in MOVING:
             continue
         if not physically_plausible(d):
