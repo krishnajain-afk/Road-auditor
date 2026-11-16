@@ -194,6 +194,12 @@ class RuleEngine:
                                                  standard_ref=rule["standard_ref"], status="not_applicable",
                                                  detail=f"not applicable to {rm.road_class.value}"))
                 continue
+            req_mode = rule.get("requires_mode")
+            if req_mode and rm.context.get("survey_mode", "drive") != req_mode:
+                compliance.append(ComplianceItem(rule_id=rule["id"], category=rule["category"], title=rule["title"],
+                                                 standard_ref=rule["standard_ref"], status="not_assessed",
+                                                 detail=f"needs a {req_mode} survey (camera on the carriageway)"))
+                continue
             try:
                 fs, status, detail = self._eval_rule(rule, rm, assets_by)
             except Exception as e:  # never let one rule kill the audit

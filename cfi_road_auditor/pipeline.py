@@ -20,7 +20,7 @@ from .perception.registry import build_detectors
 from .report.builder import build_report, write_all_outputs
 from .roadmodel import build_road_model
 from .rules.engine import RuleEngine
-from .schemas import AuditReport, Detection, FrameRef, GeoPoint
+from .schemas import AuditReport, Detection, FrameRef, GeoPoint, Source
 from .scoring.risk import summarise
 
 log = logging.getLogger("cfi")
@@ -162,7 +162,11 @@ def audit(media_path: str, cfg: AuditConfig, track_path: Optional[str] = None, c
                 # on a footpath walk the central field of view is the footpath; the carriageway is off to one side
                 d.attributes["where"] = "footpath" if 0.15 * fw <= d.bbox.cx <= 0.85 * fw else "carriageway"
     chs = [f.chainage_m for f in frames if f.chainage_m is not None]
-    assets = fuse(detections, frames_by, cam, max_chainage=(max(chs) if chs else None))
+    if cfg.survey_mode == "walk":
+        for d in detections:
+            if d.source != Source.VLM:
+                d.attributes.pop("mounting_height_m", None)
+    assets = fuse(detections, frames_by, cam, max_chainage=(max(chs) if chs else None), survey_mode=cfg.survey_mode)
     moving = count_moving_per_frame(detections)
     ctx = dict(context or {})
     ctx["capabilities"] = detectable_assets(names, vlm_used)

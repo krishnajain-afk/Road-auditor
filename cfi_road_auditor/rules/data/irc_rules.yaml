@@ -37,6 +37,7 @@ rules:
   agency: "Road owning agency / maintenance contractor"
   confidence: high
 - id: PAV-002
+  requires_mode: drive
   category: pavement
   title: Pothole density exceeds maintenance threshold
   standard_ref: "IRC:82-2015 Table 1 (serviceability levels)"
@@ -111,6 +112,7 @@ rules:
 
 # ============================================================ CROSS-SECTION
 - id: XS-001
+  requires_mode: drive
   category: cross_section
   title: Lane width below minimum
   standard_ref: "IRC:86-2018 Cl. 6 Table (urban) / IRC:73-1980 Cl. 5 (rural) / IRC:SP:99 (expressway): standard lane 3.5 m; 3.0 m minimum on local streets; 3.75 m expressway"
@@ -123,6 +125,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: XS-002
+  requires_mode: drive
   category: cross_section
   title: Carriageway narrower than two-lane standard
   standard_ref: "IRC:73-1980 Cl. 5.2 (2-lane 7.0 m, intermediate 5.5 m, single 3.75 m); IRC:86-2018 Table 4"
@@ -135,6 +138,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: XS-003
+  requires_mode: drive
   category: cross_section
   title: Sharp horizontal curve below minimum radius for design speed
   standard_ref: "IRC:38-1988 Table 1 / IRC:73-1980 Table 11 / IRC:86-2018: R_min = V^2 / 127(e+f), e=0.07, f=0.15"
@@ -147,6 +151,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: XS-004
+  requires_mode: drive
   category: cross_section
   title: Gradient steeper than ruling gradient
   standard_ref: "IRC:73-1980 Table 10 / IRC:SP:23: ruling 3.3% plain, 5% rolling, 6% mountainous; limiting 5/6/7%"
@@ -159,6 +164,7 @@ rules:
   agency: "Road owning agency"
   confidence: medium
 - id: XS-005
+  requires_mode: drive
   category: cross_section
   title: Sub-standard lane width on narrow segment with heavy two-wheeler exposure
   standard_ref: "IRC:SP:88-2019 Checklist (cross-section vs traffic mix)"
@@ -221,6 +227,7 @@ rules:
   agency: "ULB / Traffic police"
   confidence: high
 - id: MRK-005
+  requires_mode: drive
   category: markings
   title: Lane line width non-standard
   standard_ref: "IRC:35-2015 Cl. 4.2 / Table 1: lane lines 100 mm (urban) / 150 mm (rural highways); edge lines 150-200 mm"
@@ -233,6 +240,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: MRK-006
+  requires_mode: drive
   category: markings
   title: No visible lane / centre-line marking on segment
   standard_ref: "IRC:35-2015 Cl. 4 (centre line mandatory on 2-lane and wider roads); IRC:SP:88 checklist 'delineation'"
@@ -245,6 +253,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: MRK-007
+  requires_mode: drive
   category: markings
   title: Stop line thickness non-standard
   standard_ref: "IRC:35-2015 Cl. 6.4: stop line 200 mm (urban) to 300 mm (rural / high speed)"
@@ -420,6 +429,7 @@ rules:
   agency: "Road owning agency"
   confidence: high
 - id: SGN-004
+  requires_mode: drive
   category: signs
   title: Signalised intersection without advance 'Traffic Signal Ahead' sign (high-speed approach)
   standard_ref: "IRC:67-2022 (cautionary 'Traffic Signal Ahead'); IRC:93-1985 Cl. 6"
@@ -432,6 +442,7 @@ rules:
   agency: "Traffic police / Road owning agency"
   confidence: medium
 - id: SGN-005
+  requires_mode: drive
   category: signs
   title: No speed limit sign on surveyed length
   standard_ref: "IRC:67-2022 (Mandatory sign 'Speed Limit'); MoRTH notification S.O.1522(E) 6-Apr-2018 (speed limits); IRC:SP:88 checklist"
@@ -444,6 +455,7 @@ rules:
   agency: "Traffic police / Road owning agency"
   confidence: medium
 - id: SGN-006
+  requires_mode: drive
   category: signs
   title: Sharp curve without curve warning / chevron signs
   standard_ref: "IRC:67-2022 (Cautionary 'Left/Right Hand Curve', 'Hair-pin Bend'; chevron alignment markers); IRC:SP:88 checklist"
@@ -533,6 +545,7 @@ rules:
   agency: "Traffic police / ULB electrical"
   confidence: high
 - id: INT-003
+  requires_mode: drive
   category: intersection
   title: Intersection without channelisation / markings
   standard_ref: "IRC:SP:41-1994 Cl. 6 (channelising islands, lane arrows); IRC:35-2015 Cl. 6"
@@ -545,6 +558,7 @@ rules:
   agency: "Road owning agency / Traffic police"
   confidence: medium
 - id: INT-004
+  requires_mode: drive
   category: intersection
   title: Sharp heading change (possible junction/curve) without any signage detected
   standard_ref: "IRC:67-2022; IRC:SP:41-1994; IRC:SP:88 checklist 'intersection conspicuity'"
@@ -559,6 +573,7 @@ rules:
 
 # ============================================================ LIGHTING
 - id: LGT-001
+  requires_mode: drive
   category: lighting
   title: Inadequate street lighting (night footage)
   standard_ref: "IS 1944 (Parts I & II) / IRC:SP:88 checklist: urban arterial avg 30 lux, collector 15 lux, local 8 lux; uniformity (min/avg) >= 0.4"
@@ -571,6 +586,7 @@ rules:
   agency: "ULB electrical / DISCOM"
   confidence: medium
 - id: LGT-002
+  requires_mode: drive
   category: lighting
   title: Poor lighting uniformity (dark patches)
   standard_ref: "IS 1944 uniformity ratio Emin/Eavg >= 0.4 (arterial)"
@@ -701,6 +717,7 @@ rules:
 
 # ============================================================ SPEED / OPERATION
 - id: SPD-001
+  requires_mode: drive
   category: speed
   title: Survey vehicle speed exceeds posted / statutory speed limit
   standard_ref: "MoRTH S.O.1522(E) 2018: 70 km/h cars within municipal limits (lower where posted); 100 km/h 4-lane NH; 120 km/h expressways"
@@ -787,6 +804,7 @@ rules:
   agency: "ULB"
   confidence: high
 - id: LGT-004
+  requires_mode: drive
   category: lighting
   title: No street lighting at junction / crossing in built-up area
   standard_ref: "IS 1944 Part 1 (A1 arterial 30 lux, A2 15 lux, B1 8 lux, B2 4 lux; uniformity 0.4/0.3); IRC:SP:88 checklist 5.7"

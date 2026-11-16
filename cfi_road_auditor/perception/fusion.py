@@ -32,6 +32,8 @@ GATE_M = defaultdict(lambda: 15.0, {
     AssetType.TRAFFIC_SIGNAL: 40.0, AssetType.SIGN_STOP: 30.0, AssetType.SIGN_MANDATORY: 30.0, AssetType.SIGN_CAUTIONARY: 30.0,
     AssetType.SIGN_INFORMATORY: 30.0, AssetType.SIGN_UNKNOWN: 30.0, AssetType.POLE: 25.0, AssetType.STREET_LIGHT: 25.0,
     AssetType.LANE_LINE: 1e9, AssetType.CENTRE_LINE: 1e9, AssetType.KERB: 60.0, AssetType.MANHOLE: 6.0,
+    AssetType.GUARDRAIL: 1e9, AssetType.MEDIAN: 1e9, AssetType.CRASH_BARRIER: 200.0, AssetType.FOOTPATH: 1e9,
+    AssetType.INTERSECTION: 80.0, AssetType.WORK_ZONE: 80.0, AssetType.CONSTRUCTION: 40.0, AssetType.SCHOOL_ZONE: 200.0,
 })
 NOMINAL_RANGE_M = 15.0   # for objects we cannot project (above horizon)
 MIN_OBS_FOR_ASSET = {AssetType.POTHOLE: 1, AssetType.ZEBRA_CROSSING: 1}
@@ -127,7 +129,8 @@ def physically_plausible(d: Detection) -> bool:
     return True
 
 
-def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: CameraModel, max_chainage: Optional[float] = None) -> List[Asset]:
+def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: CameraModel, max_chainage: Optional[float] = None,
+         survey_mode: str = "drive") -> List[Asset]:
     ipm = IPM(cam)
     by_type: Dict[AssetType, List[Detection]] = defaultdict(list)
     for d in detections:
@@ -153,7 +156,8 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
             placed = False
             for cl in clusters[-6:]:
                 last = cl[-1]
-                same_side = _side(d, cam) == _side(last, cam) or atype in (AssetType.ZEBRA_CROSSING, AssetType.STOP_LINE, AssetType.SPEED_HUMP, AssetType.RUMBLE_STRIP)
+                same_side = _side(d, cam) == _side(last, cam) or atype in (AssetType.ZEBRA_CROSSING, AssetType.STOP_LINE, AssetType.SPEED_HUMP, AssetType.RUMBLE_STRIP,
+                                                                           AssetType.TRAFFIC_SIGNAL, AssetType.INTERSECTION, AssetType.WORK_ZONE)
                 if abs((d.chainage_m or 0) - (last.chainage_m or 0)) <= gate and same_side:
                     cl.append(d); placed = True; break
             if not placed:
@@ -169,6 +173,8 @@ def fuse(detections: Sequence[Detection], frames: Dict[int, FrameRef], cam: Came
                 conf = min(0.99, conf + 0.05 * (n_frames - 1))
             if all(d.attributes.get("proxy_class") for d in cl):   # COCO proxy classes never become confident on their own
                 conf = min(conf, 0.55)
+            if survey_mode == "walk" and atype == AssetType.POTHOLE and n_frames < 2 and all(d.source != Source.VLM for d in cl):
+                conf = min(conf, 0.45)   # single-frame learned detections on paver footpaths are unvalidated (joints, shadows)
             # single low-confidence classical pothole observations are kept but flagged
             attrs: Dict = {"n_frames": n_frames}
             for d in cl:
