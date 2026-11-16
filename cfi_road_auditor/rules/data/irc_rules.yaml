@@ -98,9 +98,9 @@ rules:
   confidence: medium
 - id: PAV-007
   category: pavement
-  title: Debris / construction material on carriageway
-  standard_ref: "IRC:SP:55-2014 Cl. 4 (work zone housekeeping)"
-  requirement: "No loose material, debris or spillage on the trafficked surface."
+  title: Debris / construction material on carriageway or footpath
+  standard_ref: "IRC:SP:55-2014 Cl. 4 (work zone housekeeping); IRC:103-2012 Cl. 5.3 (obstruction-free footpath)"
+  requirement: "No loose material, debris, spoil or spillage on the carriageway or within the footpath clear width."
   check: {type: asset_conf, asset: debris, min_conf: 0.4}
   severity: medium
   likelihood: occasional
@@ -824,4 +824,29 @@ rules:
   users: [pedestrians, persons with disabilities, elderly]
   recommendation: "Re-align the walking zone around trees with a continuous 1.8 m clear path; relocate poles/cabinets to the furniture zone; make utility covers flush; bollards (0.9 m gap) against two-wheeler parking; enforce no-parking."
   agency: "ULB / Utility agency / Traffic police"
+  confidence: high
+
+- id: WZ-002
+  category: work_zone
+  title: Open excavation / trench without barricading or pedestrian diversion
+  standard_ref: "IRC:SP:55-2014 Cl. 5, 7 & 9 (barricades, pedestrian routes, night delineation); IRC:103-2012 Cl. 5.3; MV Act 2019 s.198A"
+  requirement: "Every excavation shall be fully barricaded with retro-reflective barriers, warning signs and a protected pedestrian route; never left open overnight without lighting."
+  check: {type: asset_conf, asset: construction, min_conf: 0.5}
+  severity: critical
+  likelihood: frequent
+  users: [pedestrians, persons with disabilities, motorcyclists]
+  recommendation: "Barricade immediately (water-filled barriers / hard fencing), add hazard markers and night lamps, provide a 1.2 m protected walkway, restore the surface within the permit period; raise against the utility agency's road-cut permit."
+  agency: "Utility agency / ULB road-cut cell"
+  confidence: high
+- id: PED-013
+  category: pedestrian
+  title: Motorised two-wheelers riding on the footpath
+  standard_ref: "IRC:103-2012 Cl. 5.3 (bollards 0.9-1.2 m spacing at footpath entries); MV Act s.184; IRC:SP:88 checklist 5.9"
+  requirement: "Footpaths shall be physically protected from two-wheeler intrusion (bollards at ramps / entries) and enforced."
+  check: {type: asset_attr, asset: wrong_side_vehicle, attr: where, op: "==", threshold: footpath, min_conf: 0.5}
+  severity: high
+  likelihood: frequent
+  users: [pedestrians]
+  recommendation: "Install bollards (0.9-1.2 m gap) at footpath entries and ramps; enforcement drives; raise kerb height to 150 mm where it has been lowered."
+  agency: "ULB / Traffic police"
   confidence: high
