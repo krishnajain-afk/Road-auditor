@@ -182,6 +182,11 @@ def extract_frames(
         lum = mean_luma(img)
         return [FrameRef(index=0, t=0.0, path=dst, brightness=lum, is_night=lum < 60)]
 
+    if timestamps is None and shutil.which("ffmpeg"):
+        try:
+            return _extract_frames_ffmpeg(media, out_dir, interval_s, max_frames, resize_long_edge)
+        except Exception as e:  # fall back to OpenCV sequential decode
+            print(f"ffmpeg extraction failed ({e}); falling back to OpenCV")
     cap = cv2.VideoCapture(media.path)
     if not cap.isOpened():
         raise RuntimeError(f"OpenCV cannot open {media.path}")
@@ -219,6 +224,32 @@ def extract_frames(
             wi += 1
         fi += 1
     cap.release()
+    return refs
+
+
+def _extract_frames_ffmpeg(media: MediaMeta, out_dir: str, interval_s: float, max_frames: int, resize_long_edge: int) -> List[FrameRef]:
+    """Multithreaded ffmpeg decode at fixed fps - several times faster than OpenCV on 4K/60 fps HEVC phone footage."""
+    dur = media.duration_s or 0.0
+    if dur > 0 and dur / interval_s + 1 > max_frames:
+        interval_s = dur / max_frames
+    w, h = media.width, media.height
+    scale = "scale='if(gt(iw,ih),min(iw,%d),-2)':'if(gt(iw,ih),-2,min(ih,%d))'" % (resize_long_edge, resize_long_edge)
+    pattern = os.path.join(out_dir, "frame_%06d.jpg")
+    for f in os.listdir(out_dir):
+        if f.startswith("frame_") and f.endswith(".jpg"):
+            os.remove(os.path.join(out_dir, f))
+    cmd = ["ffmpeg", "-v", "error", "-y", "-threads", "0", "-i", media.path, "-vf", f"fps=1/{interval_s},{scale}",
+           "-q:v", "3", "-frames:v", str(max_frames), "-start_number", "0", pattern]
+    subprocess.run(cmd, check=True, capture_output=True)
+    refs: List[FrameRef] = []
+    files = sorted(f for f in os.listdir(out_dir) if f.startswith("frame_") and f.endswith(".jpg"))
+    for i, f in enumerate(files):
+        pth = os.path.join(out_dir, f)
+        img = cv2.imread(pth, cv2.IMREAD_GRAYSCALE)
+        lum = float(img.mean()) if img is not None else 0.0
+        refs.append(FrameRef(index=i, t=float(i * interval_s), path=pth, brightness=lum, is_night=lum < 60))
+    if not refs:
+        raise RuntimeError("ffmpeg produced no frames")
     return refs
 
 
